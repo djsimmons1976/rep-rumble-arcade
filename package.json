@@ -1,0 +1,15 @@
+{
+  "name": "rep-rumble-arcade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rep Rumble Arcade - group fitness games (Classic Shuffle, Mario Kart Style) with a Q-run setup and game codes",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

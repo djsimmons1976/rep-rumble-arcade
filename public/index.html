@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rep Rumble Arcade</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap');
+  :root{
+    --bg-void:#08060c; --panel:#000000; --line:#2b2838;
+    --hot-pink:#ff2f7e; --gold:#ffc93c; --violet:#9b5cff; --mint:#34e8a0;
+    --text:#f2f0f5; --muted:#8a8794; --danger:#ff5252; --sky:#3ec6ff; --green:#3fbf5f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:transparent;}
+  body{
+    font-family:'Space Mono', monospace; color:var(--text);
+    background:
+      radial-gradient(circle at 10% 20%, rgba(255,255,255,0.06) 0 1px, transparent 1px),
+      radial-gradient(circle at 70% 60%, rgba(255,255,255,0.05) 0 1px, transparent 1px),
+      radial-gradient(circle at 40% 85%, rgba(255,255,255,0.05) 0 1px, transparent 1px),
+      radial-gradient(circle at 90% 15%, rgba(255,255,255,0.05) 0 1px, transparent 1px),
+      var(--bg-void);
+    background-size: 140px 140px, 180px 180px, 160px 160px, 200px 200px, 100% 100%;
+    min-height:100vh; padding:18px;
+  }
+  #app{max-width:520px;margin:0 auto;}
+  .pixel{font-family:'Press Start 2P', monospace;}
+  .eyebrow{color:var(--hot-pink); font-size:11px; letter-spacing:2px; text-transform:uppercase; margin:0 0 6px 0;}
+  .title{font-size:26px; line-height:1.4; margin:0 0 16px 0; text-transform:uppercase;}
+  .rule{height:3px; background:var(--hot-pink); border:none; margin:14px 0 20px 0;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:16px;}
+  .row{display:flex; gap:12px;}
+  .row > *{flex:1;}
+  input[type=text], input[type=number], select{
+    width:100%; background:#0d0b14; border:1px solid var(--line); color:var(--text);
+    font-family:'Space Mono', monospace; font-size:15px; padding:12px; border-radius:3px;
+  }
+  input:focus, select:focus{outline:2px solid var(--hot-pink);}
+  .radio-group{display:flex; gap:8px; margin-bottom:12px;}
+  .radio-opt{flex:1; text-align:center; padding:10px 4px; border:1px solid var(--line); border-radius:3px; font-size:11px; text-transform:uppercase; cursor:pointer; color:var(--muted); line-height:1.3;}
+  .radio-opt.active{border-color:var(--hot-pink); color:var(--text); background:rgba(255,47,126,0.08);}
+  button{font-family:'Space Mono', monospace; font-weight:700; text-transform:uppercase; letter-spacing:1px; cursor:pointer; border-radius:3px; border:1px solid var(--line); background:#111017; color:var(--text); padding:12px 16px; transition:transform .05s ease;}
+  button:active{transform:scale(0.97);}
+  button:disabled{opacity:.4; cursor:not-allowed;}
+  .btn-primary{background:var(--hot-pink); border-color:var(--hot-pink); color:#0a0a0a;}
+  .btn-violet{background:var(--violet); border-color:var(--violet); color:#0a0a0a;}
+  .btn-sky{background:var(--sky); border-color:var(--sky); color:#0a0a0a;}
+  .btn-green{background:var(--green); border-color:var(--green); color:#0a0a0a;}
+  .btn-ghost{background:transparent; border-color:var(--line); color:var(--muted); font-size:12px; padding:8px 12px;}
+  .btn-danger{background:transparent; border-color:var(--danger); color:var(--danger); font-size:11px; padding:8px 12px;}
+  .btn-small{font-size:10px; padding:6px 10px;}
+  .topbar{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;}
+  .stat-box{background:var(--panel); border:2px solid var(--text); border-radius:4px; padding:10px 14px; text-align:center; min-width:100px;}
+  .stat-box.urgent{border-color:var(--danger); animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,82,82,.5);} 50%{box-shadow:0 0 0 6px rgba(255,82,82,0);}}
+  .stat-label{font-size:9px; color:var(--muted); letter-spacing:1px; margin-bottom:4px;}
+  .stat-value{font-family:'Press Start 2P'; font-size:20px; color:var(--text);}
+  .setup-section{margin-bottom:14px;}
+  .setup-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .setup-label{font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted);}
+  .ex-pick-list{display:flex; flex-direction:column; gap:6px;}
+  .ex-pick-row{display:flex; align-items:center; gap:8px; padding:9px 10px; border:1px solid var(--line); border-radius:3px; font-size:12px;}
+  .ex-pick-row input[type=checkbox]{width:auto; margin:0;}
+  .ex-pick-name{flex:1; text-transform:uppercase;}
+  .ex-mini-input{width:56px !important; padding:6px !important; font-size:11px !important; text-align:center;}
+  .ex-mini-label{font-size:9px; color:var(--muted); display:block; text-align:center; margin-bottom:2px;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0;}
+  @media (max-width:400px){ .grid{grid-template-columns:1fr;} }
+  .ex-card{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:12px; display:flex; flex-direction:column; gap:8px;}
+  .ex-top{display:flex; justify-content:space-between; align-items:baseline;}
+  .ex-name{font-size:13px; text-transform:uppercase; font-weight:700;}
+  .ex-pts{font-size:11px; color:var(--gold);}
+  .ex-boost{font-size:9px; color:var(--sky);}
+  .ex-bar-track{height:5px; background:#1c1a24; border-radius:3px; overflow:hidden;}
+  .ex-bar-fill{height:100%; background:var(--mint); transition:width .2s ease;}
+  .ex-controls{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .ex-tap{flex:1; background:#161320; border:1px solid var(--line); color:var(--text); padding:10px; font-size:12px;}
+  .ex-tap:active{background:var(--hot-pink); color:#0a0a0a;}
+  .ex-minus{width:32px; padding:10px 0; font-size:14px; color:var(--muted);}
+  .score-panel{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:18px; margin-bottom:16px;}
+  .score-label{font-size:11px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px;}
+  .score-value{font-family:'Press Start 2P'; font-size:36px; color:var(--gold);}
+  .team-tag{display:inline-block; margin-top:6px; font-size:11px; color:var(--violet); text-transform:uppercase;}
+  .mission-panel{border:3px solid var(--violet); border-radius:4px; padding:16px; margin-bottom:16px; background:var(--panel);}
+  .mission-panel.complete{border-color:var(--mint);}
+  .mission-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;}
+  .mission-eyebrow{color:var(--hot-pink); font-size:10px; letter-spacing:2px; text-transform:uppercase;}
+  .mission-title{font-size:16px; text-transform:uppercase; font-weight:700; margin:2px 0 8px 0;}
+  .mission-progress{font-family:'Press Start 2P'; color:var(--violet); font-size:16px;}
+  .mission-panel.complete .mission-progress{color:var(--mint);}
+  .mission-sub{font-size:11px; color:var(--muted); margin-bottom:10px;}
+  .mission-list{display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; font-size:11px;}
+  .mission-item{display:flex; justify-content:space-between; color:var(--muted);}
+  .mission-item.done{color:var(--mint);}
+  .mission-bonus{margin-top:12px; font-size:11px; color:var(--gold); text-transform:uppercase; letter-spacing:1px;}
+  .leaderboard{margin-bottom:14px;}
+  .lb-title{font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:10px;}
+  .lb-row{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); border-radius:3px; margin-bottom:6px; font-size:13px;}
+  .lb-row.me{border-color:var(--hot-pink); background:rgba(255,47,126,0.06);}
+  .lb-row.team{border-color:var(--violet); background:rgba(155,92,255,0.06);}
+  .lb-rank{color:var(--muted); width:24px;}
+  .lb-name{flex:1; text-transform:uppercase; font-weight:700;}
+  .lb-sub{font-size:10px; color:var(--muted); font-weight:400; margin-left:6px;}
+  .lb-badge{font-size:10px; color:var(--mint); margin-left:6px;}
+  .lb-score{color:var(--gold); font-family:'Press Start 2P'; font-size:13px;}
+  .footer-row{display:flex; justify-content:space-between; align-items:center; margin-top:8px; gap:8px; flex-wrap:wrap;}
+  .empty{color:var(--muted); font-size:12px; text-align:center; padding:12px;}
+  .banner{text-align:center; padding:10px; border-radius:4px; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:14px;}
+  .banner.timeup{background:rgba(255,82,82,0.12); color:var(--danger); border:1px solid var(--danger);}
+  .banner.won{background:rgba(52,232,160,0.12); color:var(--mint); border:1px solid var(--mint);}
+  .banner.boost{background:rgba(62,198,255,0.12); color:var(--sky); border:1px solid var(--sky);}
+  .lobby-list{display:flex; flex-wrap:wrap; gap:8px; margin:14px 0;}
+  .lobby-chip{border:1px solid var(--line); border-radius:20px; padding:6px 14px; font-size:12px; text-transform:uppercase; color:var(--text); background:#111017;}
+  .spinner-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--hot-pink); margin-right:6px; animation:blink 1.2s infinite;}
+  @keyframes blink{0%,100%{opacity:.2;} 50%{opacity:1;}}
+  .game-card{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:16px; margin-bottom:12px; cursor:pointer;}
+  .game-card:active{transform:scale(0.99);}
+  .game-card-title{font-size:15px; text-transform:uppercase; font-weight:700; margin-bottom:6px;}
+  .game-card-tag{font-size:12px; color:var(--muted); line-height:1.5;}
+  .bullet-list{margin:12px 0; padding:0; list-style:none;}
+  .bullet-list li{font-size:12px; color:var(--muted); padding-left:16px; position:relative; margin-bottom:8px; line-height:1.4;}
+  .bullet-list li:before{content:"\2726"; position:absolute; left:0; color:var(--sky);}
+  .lap-btn{width:100%; padding:22px; font-size:16px; background:linear-gradient(90deg,var(--green),var(--mint)); border:none; color:#06210f; margin-bottom:16px;}
+  .shell-panel{border:3px solid var(--danger); border-radius:4px; padding:16px; margin-bottom:16px; background:var(--panel);}
+  .shell-eyebrow{color:var(--danger); font-size:10px; letter-spacing:2px; text-transform:uppercase;}
+  .code-display{font-family:'Press Start 2P'; font-size:42px; letter-spacing:6px; color:var(--sky); text-align:center; padding:20px 0;}
+  .code-input{font-family:'Press Start 2P' !important; font-size:22px !important; letter-spacing:8px !important; text-align:center; text-transform:uppercase;}
+  .big-choice{width:100%; padding:20px; margin-bottom:12px; font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Loading...</div></div>
+
+<script>
+// ---------- storage adapter: same interface as the Claude artifact's window.storage,
+// backed by our own tiny API (shared data) and localStorage (personal data) ----------
+(function(){
+  async function apiGet(key){
+    var res = await fetch('/api/kv/' + encodeURIComponent(key));
+    if(res.status === 404) throw new Error('not found: ' + key);
+    if(!res.ok) throw new Error('storage GET failed (' + res.status + ')');
+    var data = await res.json();
+    return { key: key, value: data.value, shared: true };
+  }
+  async function apiSet(key, value){
+    var res = await fetch('/api/kv/' + encodeURIComponent(key), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: value })
+    });
+    if(!res.ok) throw new Error('storage SET failed (' + res.status + ')');
+    return { key: key, value: value, shared: true };
+  }
+  async function apiDelete(key){
+    var res = await fetch('/api/kv/' + encodeURIComponent(key), { method: 'DELETE' });
+    if(!res.ok) throw new Error('storage DELETE failed (' + res.status + ')');
+    return { key: key, deleted: true, shared: true };
+  }
+  async function apiList(prefix){
+    var res = await fetch('/api/kv-list?prefix=' + encodeURIComponent(prefix || ''));
+    if(!res.ok) throw new Error('storage LIST failed (' + res.status + ')');
+    var data = await res.json();
+    return { keys: data.keys, prefix: prefix, shared: true };
+  }
+
+  window.storage = {
+    get: async function(key, shared){
+      if(!shared){
+        var v = localStorage.getItem(key);
+        if(v === null) throw new Error('not found: ' + key);
+        return { key: key, value: v, shared: false };
+      }
+      return apiGet(key);
+    },
+    set: async function(key, value, shared){
+      if(!shared){ localStorage.setItem(key, value); return { key: key, value: value, shared: false }; }
+      return apiSet(key, value);
+    },
+    delete: async function(key, shared){
+      if(!shared){ localStorage.removeItem(key); return { key: key, deleted: true, shared: false }; }
+      return apiDelete(key);
+    },
+    list: async function(prefix, shared){
+      if(!shared){
+        var keys = [];
+        for(var i=0;i<localStorage.length;i++){ var k = localStorage.key(i); if(!prefix || k.indexOf(prefix)===0) keys.push(k); }
+        return { keys: keys, prefix: prefix, shared: false };
+      }
+      return apiList(prefix);
+    }
+  };
+})();
+</script>
+<script>
+(function(){
+
+  var GAMES = {
+    classic: {
+      id:'classic', title:'Classic Shuffle', accent:'var(--hot-pink)',
+      tag:'Tap-to-score fitness challenge with randomized teams.',
+      bullets:[
+        'Everyone taps exercises on their own phone to rack up points',
+        'Play free-for-all, pick your own team name, or shuffle into random teams',
+        'Hit the "Buy-In" mission (target reps on every move) for a bonus',
+        'Live leaderboard + team standings update automatically across every phone'
+      ],
+      hasBoosts:false, hasCustomExercises:false, hasRoles:false, hasGameCode:false, modes:['ffa','team','random']
+    },
+    mariokart: {
+      id:'mariokart', title:'Mario Kart Style', accent:'var(--sky)',
+      tag:'The Q sets up the game and hands out a code. Teams rotate one racer at a time while everyone else works the pit crew, and Green Shells hit the whole team.',
+      bullets:[
+        'The Q picks the game length, number of PAX, and number of teams \u2014 the app randomly divides everyone once they join',
+        'The Q gets a game code to hand out; PAX pick Mario Kart, enter the code, and type in their name \u2014 no role to choose',
+        'The app randomly sets each team\'s "run order." Only one racer per team is out at a time; everyone else on that team is Pit Crew',
+        'A racer taps "Lap Complete" to log a lap and automatically hands off to the next teammate in the run order',
+        'Pit Crew taps exercises for a separate Pit Crew Points leaderboard, and can throw a Green Shell \u2014 a set number of merkins, burpees, or big boy sit-ups the WHOLE team must finish and confirm'
+      ],
+      hasBoosts:true, hasCustomExercises:true, hasRoles:true, hasGameCode:true, modes:['random']
+    }
+  };
+
+  var MASTER_EXERCISES = [
+    {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0},
+    {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0},
+    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:0},
+    {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0},
+    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:0},
+    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:0},
+    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:0},
+    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:0},
+    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:15},
+    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:15},
+    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:10},
+    {id:'sledpush',     name:'Sled Push',        pts:40,   goal:1, cat:'travel',   boostPct:15},
+    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:10}
+  ];
+  var MISSION_BONUS = 75;
+  var DEFAULT_MINUTES = 20;
+  var TEAM_PALETTE = ['NEON','VOLT','BLAZE','NOVA','RIOT','STATIC','TURBO','CHAOS','SPARK','FURY','ECHO','ORBIT'];
+  var CODE_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  var app = document.getElementById('app');
+
+  var state = {
+    screen:'hub', hubDetailId:null, gameId:null, gameConfig:null,
+    devicePlayerId:null, playerName:null, mode:'ffa', team:null,
+    reps:{}, tapEarnings:0, missionAwarded:false,
+    session:null, teamsInfo:null,
+    leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
+    loading:true, toast:null,
+    isQ:false, code:null, codeError:null, qDraft:null,
+    shellReps:10
+  };
+
+  function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+  function K(name){
+    var withCode = (state.gameConfig && state.gameConfig.hasGameCode && state.code) ? (':' + state.code) : '';
+    return state.gameId + withCode + ':' + name;
+  }
+  function codeKey(code, name){ return state.gameId + ':' + code + ':' + name; }
+  function teamSlug(t){ return t.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,''); }
+  function fmtPts(n){ return (Math.round(n*100)/100).toString().replace(/\.0$/,''); }
+  function fmtTime(totalSec){
+    if(totalSec < 0) totalSec = 0;
+    var m = Math.floor(totalSec/60), s = Math.floor(totalSec%60);
+    return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  }
+  function genCode(){ var c=''; for(var i=0;i<4;i++){ c += CODE_CHARSET[Math.floor(Math.random()*CODE_CHARSET.length)]; } return c; }
+
+  function combinedExercises(){ return MASTER_EXERCISES.concat(state.customExercises || []); }
+
+  function activeExercises(){
+    if(state.session && state.session.exercises){ return state.session.exercises; }
+    if(state.session && state.session.exerciseIds){
+      return combinedExercises().filter(function(e){ return state.session.exerciseIds.indexOf(e.id) >= 0; });
+    }
+    return combinedExercises();
+  }
+
+  function score(){
+    if(state.gameConfig && state.gameConfig.hasBoosts){
+      var s = state.tapEarnings + (state.missionAwarded ? MISSION_BONUS : 0);
+      return Math.round(Math.max(0,s)*100)/100;
+    } else {
+      var s2 = 0;
+      activeExercises().forEach(function(e){ s2 += (state.reps[e.id]||0) * e.pts; });
+      if(state.missionAwarded) s2 += MISSION_BONUS;
+      return Math.round(s2*100)/100;
+    }
+  }
+
+  function missionProgress(){
+    var exs = activeExercises();
+    var done = 0;
+    exs.forEach(function(e){ if((state.reps[e.id]||0) >= e.goal) done++; });
+    return {done:done, total:exs.length};
+  }
+
+  // ---------- personal identity ----------
+  async function loadDeviceId(){
+    try{ var r = await window.storage.get('device-player-id', false); if(r && r.value) state.devicePlayerId = r.value; }catch(e){}
+  }
+
+  // ---------- leaderboard / teams ----------
+  async function pushLeaderboardEntry(){
+    if(!state.devicePlayerId) return;
+    var entry = {
+      name: state.playerName, score: score(), missionDone: state.missionAwarded,
+      mode: state.mode, team: state.team || null,
+      updatedAt: Date.now()
+    };
+    try{ await window.storage.set(K('leaderboard:' + state.devicePlayerId), JSON.stringify(entry), true); }
+    catch(e){ console.error('leaderboard push failed', e); }
+  }
+
+  async function fetchLeaderboard(){
+    try{
+      var listRes = await window.storage.list(K('leaderboard:'), true);
+      if(!listRes || !listRes.keys){ state.leaderboard = []; return; }
+      var entries = [];
+      for(var i=0;i<listRes.keys.length;i++){
+        try{
+          var r = await window.storage.get(listRes.keys[i], true);
+          if(r && r.value){ var parsed = JSON.parse(r.value); parsed._key = listRes.keys[i]; entries.push(parsed); }
+        }catch(e){}
+      }
+      entries.sort(function(a,b){ return b.score - a.score; });
+      state.leaderboard = entries;
+    }catch(e){ console.error('fetch leaderboard failed', e); }
+  }
+
+  function teamTotals(){
+    var map = {};
+    state.leaderboard.forEach(function(e){
+      if(e.team){
+        var key = e.team.trim().toUpperCase();
+        if(!map[key]) map[key] = {name:e.team.trim(), score:0, members:0};
+        map[key].score += e.score; map[key].members += 1;
+      }
+    });
+    var arr = []; for(var k in map){ arr.push(map[k]); }
+    arr.sort(function(a,b){ return b.score - a.score; });
+    return arr;
+  }
+
+  async function fetchSession(){
+    try{ var r = await window.storage.get(K('session'), true); state.session = (r && r.value) ? JSON.parse(r.value) : null; }
+    catch(e){ state.session = null; }
+  }
+  async function fetchTeams(){
+    try{ var r = await window.storage.get(K('teams'), true); state.teamsInfo = (r && r.value) ? JSON.parse(r.value) : null; }
+    catch(e){ state.teamsInfo = null; }
+  }
+
+  async function applyMyTeamAssignment(){
+    if(!state.team && state.teamsInfo && state.teamsInfo.assignments){
+      var assigned = state.teamsInfo.assignments[state.devicePlayerId];
+      if(assigned){ state.team = assigned; await pushLeaderboardEntry(); }
+    }
+  }
+
+  async function performShuffle(numTeams){
+    await fetchLeaderboard();
+    var pool = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
+    if(pool.length < numTeams){ alert('Need at least '+numTeams+' PAX joined before shuffling.'); return; }
+    var arr = pool.slice();
+    for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; }
+    var assignments = {};
+    var groups = {};
+    arr.forEach(function(entry, idx){
+      var pid = entry._key.replace(K('leaderboard:'),'');
+      var teamName = 'TEAM ' + TEAM_PALETTE[idx % numTeams % TEAM_PALETTE.length];
+      assignments[pid] = teamName;
+      var slug = teamSlug(teamName);
+      if(!groups[slug]) groups[slug] = [];
+      groups[slug].push(pid);
+    });
+    var teamsObj = { assignments: assignments, numTeams: numTeams, shuffledAt: Date.now() };
+    try{ await window.storage.set(K('teams'), JSON.stringify(teamsObj), true); }catch(e){ console.error(e); return; }
+    state.teamsInfo = teamsObj;
+    for(var slugKey in groups){
+      var racerState = { order: groups[slugKey], currentIndex: 0 };
+      try{ await window.storage.set(K('racer:'+slugKey), JSON.stringify(racerState), true); }catch(e){ console.error(e); }
+    }
+    await refreshTeamsData();
+    render();
+  }
+
+  function nameForId(pid){
+    var name = pid;
+    state.leaderboard.forEach(function(e){ if(e._key === K('leaderboard:'+pid)) name = e.name; });
+    return name;
+  }
+
+  function isActiveRacer(){
+    if(!state.team) return false;
+    var td = state.teamData[teamSlug(state.team)];
+    if(!td || !td.racer) return false;
+    var rs = td.racer;
+    return rs.order[rs.currentIndex % rs.order.length] === state.devicePlayerId;
+  }
+
+  function renderRunOrder(slug){
+    var td = state.teamData[slug];
+    if(!td || !td.racer){ return '<div class="empty">Run order not set yet.</div>'; }
+    var rs = td.racer;
+    var idx = rs.currentIndex % rs.order.length;
+    var html = '';
+    rs.order.forEach(function(pid, i){
+      var label = nameForId(pid);
+      var tag = '';
+      if(i === idx){ tag = ' <span style="color:var(--green);">&#9654; RACING</span>'; }
+      else if(i === (idx+1) % rs.order.length){ tag = ' <span style="color:var(--gold);">UP NEXT</span>'; }
+      html += '<div class="lb-row'+(pid===state.devicePlayerId?' me':'')+'"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+label+tag+'</span></div>';
+    });
+    return html;
+  }
+
+  // ---------- mario kart: laps / challenge / pit crew bonus ----------
+  async function refreshTeamsData(){
+    var teams = {};
+    state.leaderboard.forEach(function(e){ if(e.team){ var slug=teamSlug(e.team); if(!teams[slug]) teams[slug]={name:e.team.trim()}; } });
+    var slugs = Object.keys(teams);
+    var data = {};
+    for(var i=0;i<slugs.length;i++){
+      var slug = slugs[i];
+      var laps = []; var pcbonus = 0; var racer = null;
+      try{ var r1 = await window.storage.get(K('laps:'+slug), true); laps = (r1 && r1.value) ? JSON.parse(r1.value) : []; }catch(e){ laps = []; }
+      try{ var r2 = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (r2 && r2.value) ? parseFloat(r2.value) : 0; }catch(e){ pcbonus = 0; }
+      try{ var r3 = await window.storage.get(K('racer:'+slug), true); racer = (r3 && r3.value) ? JSON.parse(r3.value) : null; }catch(e){ racer = null; }
+      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer };
+    }
+    state.teamData = data;
+  }
+
+  async function refreshMyChallenge(){
+    if(!state.team){ state.myChallenge = null; return; }
+    var slug = teamSlug(state.team);
+    try{ var r = await window.storage.get(K('challenge:'+slug), true); state.myChallenge = (r && r.value) ? JSON.parse(r.value) : null; }
+    catch(e){ state.myChallenge = null; }
+  }
+
+  function lapInfoFor(slug){
+    var td = state.teamData[slug];
+    if(!td || !state.session || !state.session.startTime) return {completed:0, fraction:0, total:0};
+    var completed = td.laps.length;
+    if(completed === 0) return {completed:0, fraction:0, total:0};
+    var now = Date.now();
+    var elapsedNow = (now - state.session.startTime)/1000;
+    var avg = elapsedNow/completed;
+    var lastLapTime = (td.laps[completed-1] - state.session.startTime)/1000;
+    var sinceLast = elapsedNow - lastLapTime;
+    var fraction = avg > 0 ? Math.min(0.99, sinceLast/avg) : 0;
+    return {completed:completed, fraction:fraction, total: completed+fraction};
+  }
+
+  function lapStandings(){
+    var arr = [];
+    Object.keys(state.teamData).forEach(function(slug){
+      var info = lapInfoFor(slug);
+      arr.push({name: state.teamData[slug].name, laps: info.total, completed: info.completed});
+    });
+    arr.sort(function(a,b){ return b.laps - a.laps; });
+    return arr;
+  }
+
+  function pitStandings(){
+    var totals = {};
+    state.leaderboard.forEach(function(e){
+      if(e.team){
+        var slug = teamSlug(e.team);
+        if(!totals[slug]) totals[slug] = {name:e.team.trim(), score:0};
+        totals[slug].score += e.score;
+      }
+    });
+    Object.keys(state.teamData).forEach(function(slug){
+      if(!totals[slug]) totals[slug] = {name:state.teamData[slug].name, score:0};
+      totals[slug].score += state.teamData[slug].pcbonus || 0;
+    });
+    var arr = []; for(var k in totals){ arr.push(totals[k]); }
+    arr.sort(function(a,b){ return b.score - a.score; });
+    return arr;
+  }
+
+  async function completeLap(){
+    if(!state.team) return;
+    var slug = teamSlug(state.team);
+    var arr = [];
+    try{ var r = await window.storage.get(K('laps:'+slug), true); arr = (r && r.value) ? JSON.parse(r.value) : []; }catch(e){ arr = []; }
+    arr.push(Date.now());
+    try{ await window.storage.set(K('laps:'+slug), JSON.stringify(arr), true); }catch(e){ console.error(e); }
+    var rs = null;
+    try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
+    if(rs && rs.order && rs.order.length){
+      rs.currentIndex = (rs.currentIndex + 1) % rs.order.length;
+      try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
+    }
+    await refreshTeamsData();
+    render();
+  }
+
+  async function throwGreenShell(exId, reps){
+    if(!state.team) return;
+    var slug = teamSlug(state.team);
+    var existing = null;
+    try{ var r = await window.storage.get(K('challenge:'+slug), true); existing = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ existing = null; }
+    if(existing){ alert('Your team already has an active Green Shell challenge.'); return; }
+    var ex = null; activeExercises().forEach(function(e){ if(e.id === exId) ex = e; });
+    if(!ex){ alert('Pick a valid exercise.'); return; }
+    var roster = [];
+    state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === slug){ roster.push(e._key.replace(K('leaderboard:'),'')); } });
+    if(roster.indexOf(state.devicePlayerId) === -1) roster.push(state.devicePlayerId);
+    var ch = { exId: ex.id, exName: ex.name, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [] };
+    try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){ console.error(e); return; }
+    state.myChallenge = ch;
+    render();
+  }
+
+  async function confirmChallengeDone(){
+    if(!state.team) return;
+    var slug = teamSlug(state.team);
+    var ch = null;
+    try{ var r = await window.storage.get(K('challenge:'+slug), true); ch = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ ch = null; }
+    if(!ch){ state.myChallenge = null; render(); return; }
+    if(ch.doneBy.indexOf(state.devicePlayerId) === -1){ ch.doneBy.push(state.devicePlayerId); }
+    if(ch.doneBy.length >= ch.roster.length){
+      var bonus = ch.reps * ch.pts * (1 + (ch.boostPct||0)/100);
+      var pcbonus = 0;
+      try{ var rb = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (rb && rb.value) ? parseFloat(rb.value) : 0; }catch(e){ pcbonus = 0; }
+      pcbonus += bonus;
+      try{ await window.storage.set(K('pcbonus:'+slug), String(pcbonus), true); }catch(e){}
+      try{ await window.storage.delete(K('challenge:'+slug), true); }catch(e){}
+      state.myChallenge = null;
+      state.toast = { msg:'Team Challenge Complete! +'+fmtPts(bonus)+' pts to Pit Crew board', until: Date.now()+5000 };
+    } else {
+      try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){}
+      state.myChallenge = ch;
+    }
+    await refreshTeamsData();
+    render();
+  }
+
+  async function clearScopedRoundData(){
+    try{ var lapKeys = await window.storage.list(K('laps:'), true); if(lapKeys && lapKeys.keys){ for(var i=0;i<lapKeys.keys.length;i++){ try{ await window.storage.delete(lapKeys.keys[i], true); }catch(e){} } } }catch(e){}
+    try{ var chKeys = await window.storage.list(K('challenge:'), true); if(chKeys && chKeys.keys){ for(var j=0;j<chKeys.keys.length;j++){ try{ await window.storage.delete(chKeys.keys[j], true); }catch(e){} } } }catch(e){}
+    try{ var pcKeys = await window.storage.list(K('pcbonus:'), true); if(pcKeys && pcKeys.keys){ for(var k=0;k<pcKeys.keys.length;k++){ try{ await window.storage.delete(pcKeys.keys[k], true); }catch(e){} } } }catch(e){}
+    try{ var lbKeys = await window.storage.list(K('leaderboard:'), true); if(lbKeys && lbKeys.keys){ for(var l=0;l<lbKeys.keys.length;l++){ try{ await window.storage.delete(lbKeys.keys[l], true); }catch(e){} } } }catch(e){}
+    try{ await window.storage.delete(K('teams'), true); }catch(e){}
+  }
+
+  function timeLeftSec(){
+    if(!state.session || !state.session.startTime) return null;
+    return state.session.durationSec - (Date.now()-state.session.startTime)/1000;
+  }
+
+  function tap(exId, delta){
+    var ex = null;
+    activeExercises().forEach(function(e){ if(e.id===exId) ex = e; });
+    if(!ex) return;
+    var left = timeLeftSec();
+    if(left !== null && left <= 0) return;
+    if(state.gameConfig.hasBoosts){
+      if(delta > 0){
+        var val = ex.pts * (1 + (ex.boostPct||0)/100);
+        state.tapEarnings += val;
+        state.reps[exId] = (state.reps[exId]||0) + 1;
+      } else if((state.reps[exId]||0) > 0){
+        state.reps[exId] -= 1;
+        var approx = ex.pts * (1 + (ex.boostPct||0)/100);
+        state.tapEarnings = Math.max(0, state.tapEarnings - approx);
+      }
+    } else {
+      var next = (state.reps[exId]||0) + delta;
+      if(next < 0) next = 0;
+      state.reps[exId] = next;
+    }
+    var mp = missionProgress();
+    if(!state.missionAwarded && mp.done >= mp.total){ state.missionAwarded = true; }
+    render();
+    pushLeaderboardEntry();
+  }
+
+  // ---------- HUB / DETAIL ----------
+  function renderHub(){
+    var html = '<p class="eyebrow">Rep Rumble Arcade</p><h1 class="title pixel">Pick Your<br/>Game</h1><hr class="rule"/>';
+    Object.keys(GAMES).forEach(function(gid){
+      var g = GAMES[gid];
+      html += '<div class="game-card" data-game="'+gid+'" style="border-color:'+g.accent+';">' +
+        '<div class="game-card-title" style="color:'+g.accent+';">'+g.title+'</div>' +
+        '<div class="game-card-tag">'+g.tag+'</div></div>';
+    });
+    html += '<div class="empty">More game styles coming soon.</div>';
+    app.innerHTML = html;
+    app.querySelectorAll('[data-game]').forEach(function(el){
+      el.onclick = function(){ state.hubDetailId = this.getAttribute('data-game'); state.screen = 'detail'; render(); };
+    });
+  }
+
+  function renderDetail(){
+    var g = GAMES[state.hubDetailId];
+    var html = '<button class="btn-ghost" id="backBtn">&larr; All Games</button>';
+    html += '<p class="eyebrow" style="margin-top:14px;">Game Rules</p><h1 class="title pixel" style="font-size:20px;">'+g.title+'</h1><hr class="rule"/>';
+    html += '<div class="card"><div class="game-card-tag" style="margin-bottom:6px;">'+g.tag+'</div><ul class="bullet-list">';
+    g.bullets.forEach(function(b){ html += '<li>'+b+'</li>'; });
+    html += '</ul><button class="btn-primary" id="playBtn" style="width:100%;">Play '+g.title+'</button></div>';
+    app.innerHTML = html;
+    document.getElementById('backBtn').onclick = function(){ state.screen='hub'; render(); };
+    document.getElementById('playBtn').onclick = function(){
+      state.gameId = g.id; state.gameConfig = g;
+      if(g.hasGameCode){ state.screen = 'gate'; render(); }
+      else {
+        state.screen = 'game';
+        (async function(){
+          await fetchSession(); await fetchTeams();
+          render();
+        })();
+      }
+    };
+  }
+
+  // ---------- GATE (Q vs PAX) ----------
+  function renderGate(){
+    var g = state.gameConfig;
+    var html = '<button class="btn-ghost" id="backBtn">&larr; Back</button>';
+    html += '<p class="eyebrow" style="margin-top:14px;">'+g.title+'</p><h1 class="title pixel" style="font-size:20px;">Who Are<br/>You?</h1><hr class="rule"/>';
+    html += '<button class="btn-primary big-choice" id="qBtn">I\'m The Q &mdash; Set Up A Game</button>';
+    html += '<button class="btn-sky big-choice" id="paxBtn">I\'m PAX &mdash; Join With A Code</button>';
+    app.innerHTML = html;
+    document.getElementById('backBtn').onclick = function(){ state.screen='detail'; render(); };
+    document.getElementById('qBtn').onclick = function(){
+      state.isQ = true;
+      state.qDraft = {
+        minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
+        exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, included:true}; })
+      };
+      state.screen = 'qsetup';
+      render();
+    };
+    document.getElementById('paxBtn').onclick = function(){
+      state.isQ = false; state.codeError = null;
+      state.screen = 'paxcode';
+      render();
+    };
+  }
+
+  // ---------- Q SETUP ----------
+  function renderQSetup(){
+    var d = state.qDraft;
+    var strength = d.exercises.filter(function(e){ return e.cat==='strength'; });
+    var travel = d.exercises.filter(function(e){ return e.cat==='travel'; });
+
+    function rows(list){
+      var h = '';
+      list.forEach(function(e){
+        h += '<div class="ex-pick-row"><input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
+          '<span class="ex-pick-name">'+e.name+'</span>' +
+          '<div><span class="ex-mini-label">pts</span><input class="ex-mini-input" type="number" step="0.25" data-qpts="'+e.id+'" value="'+e.pts+'" /></div>' +
+          '<div><span class="ex-mini-label">boost%</span><input class="ex-mini-input" type="number" step="5" data-qboost="'+e.id+'" value="'+e.boostPct+'" /></div></div>';
+      });
+      return h;
+    }
+
+    var html = '<button class="btn-ghost" id="backBtn">&larr; Back</button>';
+    html += '<p class="eyebrow" style="margin-top:14px;">Mario Kart Style &middot; Q Setup</p><h1 class="title pixel" style="font-size:20px;">Set Up<br/>The Game</h1><hr class="rule"/>';
+    html += '<div class="card" style="margin-bottom:16px;">';
+    html += '<div class="row" style="margin-bottom:14px;">' +
+      '<div><span class="ex-mini-label" style="text-align:left;">Minutes</span><input id="qMinutes" type="number" min="1" max="120" value="'+d.minutes+'" /></div>' +
+      '<div><span class="ex-mini-label" style="text-align:left;">Number of PAX</span><input id="qNumPax" type="number" min="1" max="200" value="'+d.numPax+'" /></div>' +
+      '<div><span class="ex-mini-label" style="text-align:left;">Number of Teams</span><input id="qNumTeams" type="number" min="2" max="12" value="'+d.numTeams+'" /></div></div>';
+    html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Strength Moves</span></div><div class="ex-pick-list">'+rows(strength)+'</div></div>';
+    html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Travels</span></div><div class="ex-pick-list">'+rows(travel)+'</div></div>';
+    html += '<button class="btn-sky btn-small" id="qAddExBtn">+ Add Custom Exercise</button>';
+    html += '<div style="height:14px;"></div><button class="btn-primary" id="createGameBtn" style="width:100%;">Create Game &amp; Get Code</button>';
+    html += '</div>';
+
+    app.innerHTML = html;
+    document.getElementById('backBtn').onclick = function(){ state.screen='gate'; render(); };
+    document.getElementById('qMinutes').onchange = function(){ d.minutes = parseFloat(this.value)||DEFAULT_MINUTES; };
+    document.getElementById('qNumPax').onchange = function(){ d.numPax = parseInt(this.value,10)||1; };
+    document.getElementById('qNumTeams').onchange = function(){ d.numTeams = parseInt(this.value,10)||2; };
+    app.querySelectorAll('[data-qpick]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpick')) e.included = el.checked; }); }; });
+    app.querySelectorAll('[data-qpts]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpts')) e.pts = parseFloat(el.value)||0; }); }; });
+    app.querySelectorAll('[data-qboost]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qboost')) e.boostPct = parseFloat(el.value)||0; }); }; });
+    document.getElementById('qAddExBtn').onclick = function(){
+      var name = prompt('Exercise name (e.g. Wall Ball):'); if(!name) return;
+      var cat = confirm('Is this a Travel move (distance-based)? Cancel = Strength move (rep-based)') ? 'travel' : 'strength';
+      var pts = parseFloat(prompt('Points per rep:', '1')) || 1;
+      var boostPct = parseFloat(prompt('Booster %:', '0')) || 0;
+      var goal = parseInt(prompt('Buy-In mission goal reps:', '5'),10) || 5;
+      d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:goal, pts:pts, boostPct:boostPct, included:true});
+      renderQSetup();
+    };
+    document.getElementById('createGameBtn').onclick = async function(){
+      var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct}; });
+      if(chosen.length === 0){ alert('Pick at least one exercise or travel.'); return; }
+      var code = genCode();
+      for(var attempt=0; attempt<6; attempt++){
+        var exists = null;
+        try{ exists = await window.storage.get(codeKey(code,'session'), true); }catch(e){ exists = null; }
+        if(!exists || !exists.value) break;
+        code = genCode();
+      }
+      var sess = { durationSec: d.minutes*60, startTime: null, exercises: chosen, numTeams: d.numTeams, numPax: d.numPax };
+      try{ await window.storage.set(codeKey(code,'session'), JSON.stringify(sess), true); }
+      catch(e){
+        console.error('create game failed', e);
+        alert('Could not create the game.\n\nError detail: ' + (e && e.message ? e.message : String(e)) + '\n\nThis usually means the storage feature isn\'t available in this view. Make sure you\'re opening this inside the Claude chat/artifact panel (not a downloaded file opened directly in a browser).');
+        return;
+      }
+      state.code = code; state.session = sess; state.teamsInfo = null; state.leaderboard = [];
+      state.screen = 'game';
+      render();
+    };
+  }
+
+  // ---------- PAX code entry ----------
+  function renderPaxCode(){
+    var html = '<button class="btn-ghost" id="backBtn">&larr; Back</button>';
+    html += '<p class="eyebrow" style="margin-top:14px;">Mario Kart Style</p><h1 class="title pixel" style="font-size:20px;">Enter Game<br/>Code</h1><hr class="rule"/>';
+    html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Code from your Q</div>';
+    html += '<input id="codeInput" class="code-input" type="text" maxlength="4" placeholder="XXXX" />';
+    if(state.codeError){ html += '<div class="banner timeup" style="margin-top:12px;">'+state.codeError+'</div>'; }
+    html += '<div style="height:12px;"></div><button class="btn-primary" id="codeJoinBtn" style="width:100%;">Continue</button></div>';
+    app.innerHTML = html;
+    document.getElementById('backBtn').onclick = function(){ state.screen='gate'; render(); };
+    document.getElementById('codeJoinBtn').onclick = async function(){
+      var raw = document.getElementById('codeInput').value.trim().toUpperCase();
+      if(!raw){ return; }
+      var r = null;
+      try{ r = await window.storage.get(codeKey(raw,'session'), true); }catch(e){ r = null; }
+      if(!r || !r.value){ state.codeError = 'Game code not found \u2014 double check with your Q.'; render(); return; }
+      state.code = raw; state.session = JSON.parse(r.value); state.codeError = null;
+      state.mode = 'random';
+      await fetchTeams(); await fetchLeaderboard();
+      state.screen = 'game';
+      render();
+    };
+  }
+
+  // ---------- PAX join (name + role) ----------
+  function renderPaxJoin(){
+    var html = '<p class="eyebrow">Code: '+state.code+'</p><h1 class="title pixel" style="font-size:20px;">Join The<br/>Game</h1><hr class="rule"/>';
+    html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Your name</div>';
+    html += '<input id="nameInput" type="text" maxlength="16" placeholder="e.g. HERKY" /><div style="height:16px;"></div>';
+    html += '<div class="mission-sub">The Q will randomly assign your team and your team\'s run order \u2014 you\'ll rotate through being the racer, one at a time.</div><div style="height:12px;"></div>';
+    html += '<button class="btn-primary" id="joinBtn" style="width:100%;">Join</button></div>';
+    app.innerHTML = html;
+    document.getElementById('joinBtn').onclick = async function(){
+      var v = document.getElementById('nameInput').value.trim();
+      if(!v){ document.getElementById('nameInput').focus(); return; }
+      state.playerName = v.slice(0,16).toUpperCase();
+      state.mode = 'random';
+      if(!state.devicePlayerId){ state.devicePlayerId = uid(); try{ await window.storage.set('device-player-id', state.devicePlayerId, false); }catch(e){} }
+      await fetchLeaderboard();
+      await pushLeaderboardEntry();
+      await fetchTeams(); await applyMyTeamAssignment();
+      await refreshTeamsData(); await refreshMyChallenge();
+      render();
+    };
+  }
+
+  function renderPaxWaiting(msg){
+    var html = '<p class="eyebrow">Code: '+state.code+'</p><h1 class="title pixel" style="font-size:18px;">'+state.playerName+'</h1><hr class="rule"/>';
+    html += '<div class="card"><div class="setup-label" style="margin-bottom:10px;"><span class="spinner-dot"></span>'+msg+'</div>';
+    if(state.team){ html += '<div class="team-tag">&#9650; '+state.team+'</div>'; }
+    html += '</div>';
+    app.innerHTML = html;
+  }
+
+  // ---------- Q dashboard ----------
+  function renderQDashboard(){
+    var started = state.session && state.session.startTime;
+    var left = timeLeftSec();
+    var timeUp = started && left <= 0;
+    var joined = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
+
+    var html = '<p class="eyebrow">You Are The Q</p><h1 class="title pixel" style="font-size:18px;">Game<br/>Dashboard</h1>';
+    html += '<div class="code-display">'+state.code+'</div>';
+    html += '<div class="empty" style="margin-bottom:14px;">Hand this code to your PAX</div><hr class="rule"/>';
+
+    if(started){
+      html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'" style="margin-bottom:16px;"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>';
+      if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
+    }
+
+    html += '<div class="card" style="margin-bottom:16px;">';
+    html += '<div class="setup-label" style="margin-bottom:8px;">PAX joined: '+joined.length+' / '+state.session.numPax+'</div>';
+    html += '<div class="lobby-list">';
+    if(joined.length===0){ html += '<span class="empty">No one has joined yet.</span>'; }
+    joined.forEach(function(p){ html += '<span class="lobby-chip">'+p.name+(p.team?' &middot; '+p.team:'')+'</span>'; });
+    html += '</div>';
+
+    if(!state.teamsInfo){
+      html += '<div style="height:10px;"></div><button class="btn-violet" id="shuffleBtn" style="width:100%;">Shuffle Into '+state.session.numTeams+' Teams &amp; Set Run Order</button>';
+    } else if(!started){
+      html += '<div style="height:10px;"></div><div class="setup-label" style="margin-bottom:6px;">Teams and run order are set. Ready to start?</div>';
+      html += '<button class="btn-primary" id="startBtn" style="width:100%;">Start Game Now</button>';
+    }
+    html += '</div>';
+
+    if(state.teamsInfo){
+      html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Run Orders</div>';
+      Object.keys(state.teamData).forEach(function(slug){
+        html += '<div class="setup-label" style="color:var(--sky); margin:10px 0 4px 0;">'+state.teamData[slug].name+'</div>';
+        html += renderRunOrder(slug);
+      });
+      html += '</div>';
+    }
+
+    if(started){ html += renderStandings(); }
+
+    html += '<div class="footer-row"><button class="btn-danger" id="resetBtn">Reset This Round (Same Code)</button>';
+    html += '<button class="btn-ghost btn-small" id="endBtn">End &amp; Back To Games</button></div>';
+
+    app.innerHTML = html;
+    var shuffleBtn = document.getElementById('shuffleBtn');
+    if(shuffleBtn){ shuffleBtn.onclick = function(){ performShuffle(state.session.numTeams); }; }
+    var startBtn = document.getElementById('startBtn');
+    if(startBtn){
+      startBtn.onclick = async function(){
+        var sess = JSON.parse(JSON.stringify(state.session));
+        sess.startTime = Date.now();
+        try{ await window.storage.set(K('session'), JSON.stringify(sess), true); state.session = sess; await refreshTeamsData(); render(); }
+        catch(e){ console.error(e); }
+      };
+    }
+    document.getElementById('resetBtn').onclick = async function(){
+      if(!confirm('Reset this round? Clears teams, leaderboard and progress but keeps the same code and setup.')) return;
+      await clearScopedRoundData();
+      var sess = JSON.parse(JSON.stringify(state.session));
+      sess.startTime = null;
+      try{ await window.storage.set(K('session'), JSON.stringify(sess), true); }catch(e){}
+      state.session = sess; state.teamsInfo = null; state.leaderboard = []; state.teamData = {};
+      render();
+    };
+    document.getElementById('endBtn').onclick = function(){
+      state.screen = 'hub'; state.isQ = false; state.code = null; state.session = null; state.teamsInfo = null;
+      state.leaderboard = []; state.playerName = null;
+      render();
+    };
+  }
+
+  // ---------- shared standings + challenge banner ----------
+  function renderStandings(){
+    var html = '';
+    var laps = lapStandings();
+    html += '<div class="leaderboard"><div class="lb-title">Lap Counter (Main Leaderboard)</div>';
+    if(laps.length === 0){ html += '<div class="empty">No laps logged yet.</div>'; }
+    laps.forEach(function(t, i){
+      var mine = state.team && t.name.toUpperCase() === state.team.toUpperCase();
+      html += '<div class="lb-row team'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
+        '<span class="lb-name">'+t.name+'</span><span class="lb-score">'+t.laps.toFixed(2)+' laps</span></div>';
+    });
+    html += '</div>';
+    var pits = pitStandings();
+    html += '<div class="leaderboard"><div class="lb-title">Pit Crew Points</div>';
+    if(pits.length === 0){ html += '<div class="empty">No pit crew points yet.</div>'; }
+    pits.forEach(function(t, i){
+      var mine = state.team && t.name.toUpperCase() === state.team.toUpperCase();
+      html += '<div class="lb-row team'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
+        '<span class="lb-name">'+t.name+'</span><span class="lb-score">'+fmtPts(t.score)+'</span></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderChallengeBanner(timeUp){
+    var html = '';
+    var ch = state.myChallenge;
+    if(!ch) return html;
+    var iAmDone = ch.doneBy.indexOf(state.devicePlayerId) >= 0;
+    html += '<div class="shell-panel"><p class="shell-eyebrow">&#128994; Green Shell Incoming</p>' +
+      '<p class="mission-title" style="font-size:14px;">Whole team: '+ch.reps+' x '+ch.exName+'</p>' +
+      '<div class="mission-sub">'+ch.doneBy.length+'/'+ch.roster.length+' teammates confirmed done</div>';
+    if(!timeUp){
+      if(iAmDone){ html += '<div class="banner boost">Waiting on the rest of your team&hellip;</div>'; }
+      else { html += '<button class="btn-green" id="challengeDoneBtn" style="width:100%;">I\'m Done</button>'; }
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // ---------- GAME: classic (unchanged, no code system) ----------
+  function renderGameClassic(){
+    var left = timeLeftSec();
+    var started = state.session && state.session.startTime;
+    var timeUp = started && left <= 0;
+    var mp = missionProgress();
+    var exs = activeExercises();
+    var g = state.gameConfig;
+    var modeLabel = state.mode==='team' ? 'Team Battle' : (state.mode==='random' ? 'Random Teams' : 'Free-for-all');
+
+    var html = '';
+    html += '<div class="topbar"><div><p class="eyebrow">'+g.title+' &middot; '+modeLabel+'</p><h1 class="title pixel" style="font-size:18px;">'+(state.playerName||'')+'\'S<br/>RUN</h1></div>';
+    if(started){ html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>'; }
+    html += '</div>';
+    html += '<div class="row"><button class="btn-ghost" id="quitBtn">&larr; Switch Player</button><button class="btn-ghost" id="hubBtn">All Games</button></div><hr class="rule"/>';
+
+    if(!started){
+      html += renderClassicSetupPanel();
+      app.innerHTML = html; wireCommonNav(); wireClassicSetupPanel();
+      var startBtn = document.getElementById('startBtn2');
+      if(startBtn){
+        startBtn.onclick = function(){
+          var mins = parseFloat(document.getElementById('minInput').value) || DEFAULT_MINUTES;
+          var ids = combinedExercises().filter(function(e){ return state.classicSelection[e.id] && state.classicSelection[e.id].included; }).map(function(e){ return e.id; });
+          if(ids.length === 0){ alert('Pick at least one exercise or travel.'); return; }
+          (async function(){
+            var sess = { durationSec: mins*60, startTime: Date.now(), exerciseIds: ids };
+            try{ await window.storage.set(K('session'), JSON.stringify(sess), true); state.session = sess; render(); }catch(e){ console.error(e); }
+          })();
+        };
+      }
+      return;
+    }
+    if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final scores locked in</div>'; }
+    else if(state.missionAwarded){ html += '<div class="banner won">Buy-in complete! +'+MISSION_BONUS+' bonus pts banked</div>'; }
+
+    html += '<div class="score-panel"><div class="score-label">Your Score</div><div class="score-value">'+fmtPts(score())+' <span style="font-size:16px;">pts</span></div>';
+    if(state.team){ html += '<div class="team-tag">&#9650; '+state.team+'</div>'; }
+    html += '</div>';
+
+    html += '<div class="mission-panel'+(state.missionAwarded?' complete':'')+'"><div class="mission-head"><div><p class="mission-eyebrow">Opening Mission</p><p class="mission-title">Complete The Buy-In</p></div>' +
+      '<div class="mission-progress">'+mp.done+'/'+mp.total+'</div></div><div class="mission-sub">Hit the target reps on every move below.</div><div class="mission-list">';
+    exs.forEach(function(e){
+      var d = (state.reps[e.id]||0) >= e.goal;
+      html += '<div class="mission-item'+(d?' done':'')+'"><span>'+e.name+'</span><span>'+Math.min(state.reps[e.id]||0,e.goal)+'/'+e.goal+'</span></div>';
+    });
+    html += '</div><div class="mission-bonus">Reward: +'+MISSION_BONUS+' pts</div></div>';
+
+    html += '<div class="grid">';
+    exs.forEach(function(e){
+      var pct = Math.min(100, ((state.reps[e.id]||0)/e.goal)*100);
+      html += '<div class="ex-card"><div class="ex-top"><span class="ex-name">'+e.name+'</span><span class="ex-pts">'+fmtPts(e.pts)+'pt</span></div>' +
+        '<div class="ex-bar-track"><div class="ex-bar-fill" style="width:'+pct+'%;"></div></div>' +
+        '<div class="ex-controls"><button class="ex-minus" data-ex="'+e.id+'" data-delta="-1" '+(timeUp?'disabled':'')+'>&minus;</button>' +
+        '<button class="ex-tap" data-ex="'+e.id+'" data-delta="1" '+(timeUp?'disabled':'')+'>'+(state.reps[e.id]||0)+' reps &middot; tap</button></div></div>';
+    });
+    html += '</div>';
+
+    var teams = teamTotals();
+    if(teams.length){
+      html += '<div class="leaderboard"><div class="lb-title">Team Standings</div>';
+      teams.forEach(function(t, i){
+        var mine = state.team && t.name.toUpperCase()===state.team.toUpperCase();
+        html += '<div class="lb-row team'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
+          '<span class="lb-name">'+t.name+'<span class="lb-sub">'+t.members+' player'+(t.members===1?'':'s')+'</span></span>' +
+          '<span class="lb-score">'+fmtPts(t.score)+'</span></div>';
+      });
+      html += '</div>';
+    }
+    html += '<div class="leaderboard"><div class="lb-title">Individual Leaderboard</div>';
+    if(state.leaderboard.length===0){ html += '<div class="empty">No scores yet.</div>'; }
+    else{
+      state.leaderboard.forEach(function(p, i){
+        var mine = p._key === K('leaderboard:'+state.devicePlayerId);
+        html += '<div class="lb-row'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
+          '<span class="lb-name">'+p.name+(p.team?'<span class="lb-sub">'+p.team+'</span>':'')+(p.missionDone?'<span class="lb-badge">&#9733; BUY-IN</span>':'')+'</span>' +
+          '<span class="lb-score">'+fmtPts(p.score)+'</span></div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div class="footer-row"><button class="btn-danger" id="resetBtn">Reset Round For Everyone</button></div>';
+    app.innerHTML = html;
+    wireCommonNav();
+    document.getElementById('resetBtn').onclick = async function(){
+      if(!confirm('Reset the round for everyone?')) return;
+      try{
+        await window.storage.set(K('session'), JSON.stringify({durationSec:null,startTime:null,exerciseIds:null}), true);
+        try{ await window.storage.delete(K('teams'), true); }catch(e){}
+        for(var i=0;i<state.leaderboard.length;i++){ try{ await window.storage.delete(state.leaderboard[i]._key, true); }catch(e){} }
+      }catch(e){}
+      state.reps={}; state.missionAwarded=false;
+      await fetchSession(); await fetchTeams(); await fetchLeaderboard();
+      render();
+    };
+    app.querySelectorAll('[data-ex]').forEach(function(btn){ btn.onclick = function(){ tap(this.getAttribute('data-ex'), parseInt(this.getAttribute('data-delta'),10)); }; });
+  }
+
+  function renderClassicSetupPanel(){
+    if(!state.classicSelection){
+      state.classicSelection = {};
+      MASTER_EXERCISES.forEach(function(e){ state.classicSelection[e.id] = {included:true}; });
+    }
+    function rows(list){
+      var h='';
+      list.forEach(function(e){
+        var sel = state.classicSelection[e.id] || {included:true};
+        state.classicSelection[e.id] = sel;
+        h += '<div class="ex-pick-row"><input type="checkbox" data-cpick="'+e.id+'" '+(sel.included?'checked':'')+' /><span class="ex-pick-name">'+e.name+'</span><span class="ex-pts">'+fmtPts(e.pts)+'pt</span></div>';
+      });
+      return h;
+    }
+    var strength = MASTER_EXERCISES.filter(function(e){ return e.cat==='strength'; });
+    var travel = MASTER_EXERCISES.filter(function(e){ return e.cat==='travel'; });
+    var html = '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">No round running yet &mdash; set it up</div>' +
+      '<div class="row" style="align-items:center; margin-bottom:16px;"><div><input id="minInput" type="number" min="1" max="120" value="'+DEFAULT_MINUTES+'" /></div>' +
+      '<div style="flex:0 0 auto;"><span style="font-size:11px;color:var(--muted);">minutes</span></div></div>' +
+      '<div class="setup-section"><div class="setup-head"><span class="setup-label">Strength Moves</span></div><div class="ex-pick-list">'+rows(strength)+'</div></div>' +
+      '<div class="setup-section"><div class="setup-head"><span class="setup-label">Travels</span></div><div class="ex-pick-list">'+rows(travel)+'</div></div>' +
+      '<button class="btn-primary" id="startBtn2" style="width:100%; margin-top:8px;">Start Round For Everyone</button></div>';
+    return html;
+  }
+  function wireClassicSetupPanel(){
+    app.querySelectorAll('[data-cpick]').forEach(function(el){ el.onchange = function(){ state.classicSelection[this.getAttribute('data-cpick')].included = this.checked; }; });
+  }
+
+  // ---------- GAME: mario kart (rotating racer) ----------
+  function renderGameMarioKart(){
+    var left = timeLeftSec();
+    var started = state.session && state.session.startTime;
+    var timeUp = started && left <= 0;
+    var exs = activeExercises();
+    var iAmRacer = isActiveRacer();
+    var mySlug = state.team ? teamSlug(state.team) : null;
+    var myTeamData = mySlug ? state.teamData[mySlug] : null;
+
+    var html = '<div class="topbar"><div><p class="eyebrow">Mario Kart Style &middot; '+(iAmRacer?'Racing Now':'Pit Crew')+'</p>' +
+      '<h1 class="title pixel" style="font-size:18px;">'+state.playerName+'</h1></div>';
+    if(started){ html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>'; }
+    html += '</div>';
+    html += '<button class="btn-ghost" id="hubBtn">&larr; All Games</button>';
+    if(state.team){ html += '<div class="team-tag" style="margin:8px 0 0 0;">&#9650; '+state.team+'</div>'; }
+    html += '<hr class="rule"/>';
+
+    if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
+    if(state.toast && Date.now() < state.toast.until){ html += '<div class="banner boost">'+state.toast.msg+'</div>'; }
+    html += renderChallengeBanner(timeUp);
+
+    if(!iAmRacer && myTeamData && myTeamData.racer){
+      var rs = myTeamData.racer;
+      var curName = nameForId(rs.order[rs.currentIndex % rs.order.length]);
+      html += '<div class="banner boost">Current Racer: '+curName+'</div>';
+    }
+
+    if(iAmRacer){
+      html += '<div class="banner won">You\'re up! Run your lap, then tap below to hand off.</div>';
+      html += '<button class="lap-btn" id="lapBtn" '+(timeUp?'disabled':'')+'>&#127937; LAP COMPLETE</button>';
+    } else {
+      if(state.missionAwarded){ html += '<div class="banner won">Buy-in complete! +'+MISSION_BONUS+' bonus pts banked</div>'; }
+      html += '<div class="score-panel"><div class="score-label">Your Pit Crew Points</div><div class="score-value">'+fmtPts(score())+'</div></div>';
+      var mp = missionProgress();
+      html += '<div class="mission-panel'+(state.missionAwarded?' complete':'')+'"><div class="mission-head"><div><p class="mission-eyebrow">Opening Mission</p><p class="mission-title">Complete The Buy-In</p></div>' +
+        '<div class="mission-progress">'+mp.done+'/'+mp.total+'</div></div><div class="mission-sub">Hit the target reps on every move below.</div><div class="mission-list">';
+      exs.forEach(function(e){
+        var d = (state.reps[e.id]||0) >= e.goal;
+        html += '<div class="mission-item'+(d?' done':'')+'"><span>'+e.name+'</span><span>'+Math.min(state.reps[e.id]||0,e.goal)+'/'+e.goal+'</span></div>';
+      });
+      html += '</div><div class="mission-bonus">Reward: +'+MISSION_BONUS+' pts</div></div>';
+
+      html += '<div class="grid">';
+      exs.forEach(function(e){
+        var pct = Math.min(100, ((state.reps[e.id]||0)/e.goal)*100);
+        html += '<div class="ex-card"><div class="ex-top"><span class="ex-name">'+e.name+'</span><span class="ex-pts">'+fmtPts(e.pts)+'pt'+(e.boostPct?' <span class="ex-boost">+'+e.boostPct+'%</span>':'')+'</span></div>' +
+          '<div class="ex-bar-track"><div class="ex-bar-fill" style="width:'+pct+'%;"></div></div>' +
+          '<div class="ex-controls"><button class="ex-minus" data-ex="'+e.id+'" data-delta="-1" '+(timeUp?'disabled':'')+'>&minus;</button>' +
+          '<button class="ex-tap" data-ex="'+e.id+'" data-delta="1" '+(timeUp?'disabled':'')+'>'+(state.reps[e.id]||0)+' reps &middot; tap</button></div></div>';
+      });
+      html += '</div>';
+
+      if(!state.myChallenge && !timeUp){
+        html += '<div class="shell-panel"><p class="shell-eyebrow">&#128994; Throw A Green Shell</p><div class="mission-sub">Hits the whole team &mdash; everyone must finish and confirm.</div>';
+        html += '<div class="row" style="margin-bottom:8px;"><select id="shellExSelect">';
+        exs.forEach(function(e){ html += '<option value="'+e.id+'">'+e.name+'</option>'; });
+        html += '</select><input id="shellRepsInput" type="number" min="1" value="'+state.shellReps+'" /></div>';
+        html += '<button class="btn-danger" id="throwShellBtn" style="width:100%; border:1px solid var(--danger);">Throw Green Shell</button></div>';
+      }
+    }
+
+    if(mySlug && state.teamData[mySlug] && state.teamData[mySlug].racer){
+      html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Your Team\'s Run Order</div>' + renderRunOrder(mySlug) + '</div>';
+    }
+
+    html += renderStandings();
+    app.innerHTML = html;
+    wireCommonNav();
+    var lapBtn = document.getElementById('lapBtn');
+    if(lapBtn){ lapBtn.onclick = completeLap; }
+    var challengeDoneBtn = document.getElementById('challengeDoneBtn');
+    if(challengeDoneBtn){ challengeDoneBtn.onclick = confirmChallengeDone; }
+    var throwShellBtn = document.getElementById('throwShellBtn');
+    if(throwShellBtn){
+      throwShellBtn.onclick = function(){
+        var exId = document.getElementById('shellExSelect').value;
+        var reps = parseInt(document.getElementById('shellRepsInput').value, 10) || 1;
+        state.shellReps = reps;
+        throwGreenShell(exId, reps);
+      };
+    }
+    app.querySelectorAll('[data-ex]').forEach(function(btn){ btn.onclick = function(){ tap(this.getAttribute('data-ex'), parseInt(this.getAttribute('data-delta'),10)); }; });
+  }
+
+  function wireCommonNav(){
+    var quitBtn = document.getElementById('quitBtn');
+    if(quitBtn){ quitBtn.onclick = function(){ state.playerName = null; render(); }; }
+    var hubBtn = document.getElementById('hubBtn');
+    if(hubBtn){
+      hubBtn.onclick = function(){
+        state.screen='hub'; state.playerName=null; state.isQ=false; state.code=null;
+        state.session=null; state.teamsInfo=null; state.leaderboard=[]; state.team=null;
+        render();
+      };
+    }
+  }
+
+  function renderGame(){
+    var g = state.gameConfig;
+    if(g.hasGameCode){
+      if(state.isQ){ renderQDashboard(); return; }
+      if(!state.playerName){ renderPaxJoin(); return; }
+      if(!state.team){ renderPaxWaiting('Waiting for the Q to shuffle teams...'); return; }
+      if(!(state.session && state.session.startTime)){ renderPaxWaiting('Waiting for the Q to start the game...'); return; }
+      renderGameMarioKart();
+      return;
+    }
+    renderGameClassic();
+  }
+
+  function render(){
+    if(state.loading){ app.innerHTML = '<div class="empty">Loading Rep Rumble Arcade...</div>'; return; }
+    if(state.screen === 'hub'){ renderHub(); return; }
+    if(state.screen === 'detail'){ renderDetail(); return; }
+    if(state.screen === 'gate'){ renderGate(); return; }
+    if(state.screen === 'qsetup'){ renderQSetup(); return; }
+    if(state.screen === 'paxcode'){ renderPaxCode(); return; }
+    if(state.screen === 'game'){ renderGame(); return; }
+  }
+
+  async function init(){
+    if(!window.storage || typeof window.storage.get !== 'function'){
+      app.innerHTML = '<div class="card"><p class="eyebrow" style="color:var(--danger);">Storage Unavailable</p>' +
+        '<p style="font-size:13px; line-height:1.5;">This app could not set up its storage layer. Try reloading the page; if it keeps happening, the server may be down.</p></div>';
+      return;
+    }
+    await loadDeviceId();
+    state.loading = false;
+    render();
+
+    setInterval(async function(){
+      if(state.screen === 'game' && state.gameId && state.gameConfig){
+        if(state.gameConfig.hasGameCode && !state.code){ return; }
+        await fetchSession(); await fetchTeams();
+        if(state.isQ || state.playerName){
+          await fetchLeaderboard();
+          if(!state.isQ){ await applyMyTeamAssignment(); }
+          if(state.gameConfig.hasRoles){ await refreshTeamsData(); if(!state.isQ){ await refreshMyChallenge(); } }
+        }
+        render();
+      }
+    }, 4000);
+
+    setInterval(function(){
+      if(state.screen === 'game' && (state.isQ || state.playerName) && state.session && state.session.startTime){ render(); }
+    }, 1000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
