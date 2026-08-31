@@ -879,6 +879,66 @@
     return html;
   }
 
+  function renderClassicJoin(){
+    var g = state.gameConfig;
+    var html = '<button class="btn-ghost" id="backBtn2">&larr; All Games</button>';
+    html += '<p class="eyebrow" style="margin-top:14px;">'+g.title+'</p><h1 class="title pixel" style="font-size:20px;">Join<br/>Session</h1><hr class="rule"/>';
+    html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Your name</div>';
+    html += '<input id="nameInput" type="text" maxlength="16" placeholder="e.g. HERKY" value="'+(state.playerName||'')+'" />';
+    html += '<div style="height:16px;"></div><div class="setup-label" style="margin-bottom:8px;">How are you playing?</div><div class="radio-group">';
+    html += '<div class="radio-opt'+(state.mode==='ffa'?' active':'')+'" data-mode="ffa">Free-<br/>for-all</div>';
+    html += '<div class="radio-opt'+(state.mode==='team'?' active':'')+'" data-mode="team">Team<br/>Battle</div>';
+    html += '<div class="radio-opt'+(state.mode==='random'?' active':'')+'" data-mode="random">Random<br/>Teams</div></div>';
+    if(state.mode === 'team'){
+      html += '<input id="teamInput" type="text" maxlength="16" placeholder="Team name" value="'+(state.team||'')+'" /><div style="height:12px;"></div>';
+    }
+    if(state.mode === 'random'){
+      html += '<div class="mission-sub">You\'ll land in a waiting room. Once everyone\'s in, anyone can hit Shuffle.</div><div style="height:12px;"></div>';
+    }
+    html += '<button class="btn-primary" id="joinBtn" style="width:100%;">Join Session</button></div>';
+    app.innerHTML = html;
+    document.getElementById('backBtn2').onclick = function(){ state.screen='hub'; state.playerName=null; render(); };
+    app.querySelectorAll('[data-mode]').forEach(function(el){ el.onclick = function(){ state.mode = this.getAttribute('data-mode'); renderClassicJoin(); }; });
+    document.getElementById('joinBtn').onclick = async function(){
+      var v = document.getElementById('nameInput').value.trim();
+      if(!v){ document.getElementById('nameInput').focus(); return; }
+      if(state.mode === 'team'){
+        var t = document.getElementById('teamInput').value.trim();
+        if(!t){ document.getElementById('teamInput').focus(); return; }
+        state.team = t.slice(0,16).toUpperCase();
+      } else if(state.mode !== 'random'){ state.team = null; }
+      state.playerName = v.slice(0,16).toUpperCase();
+      if(!state.devicePlayerId){ state.devicePlayerId = uid(); try{ await window.storage.set('device-player-id', state.devicePlayerId, false); }catch(e){} }
+      await fetchLeaderboard();
+      await pushLeaderboardEntry();
+      await fetchTeams(); await applyMyTeamAssignment();
+      render();
+    };
+  }
+
+  function renderClassicLobby(){
+    var waiting = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
+    var html = '<p class="eyebrow">Random Teams</p><h1 class="title pixel" style="font-size:18px;">Team<br/>Shuffle</h1><hr class="rule"/>';
+    html += '<button class="btn-ghost" id="quitBtn">&larr; Switch Player</button>';
+    html += '<div class="card" style="margin-top:14px;">';
+    html += '<div class="setup-label" style="margin-bottom:8px;"><span class="spinner-dot"></span>Waiting room ('+waiting.length+' joined)</div><div class="lobby-list">';
+    if(waiting.length===0){ html += '<span class="empty">No one here yet.</span>'; }
+    waiting.forEach(function(p){
+      var mine = p._key === K('leaderboard:'+state.devicePlayerId);
+      html += '<span class="lobby-chip" style="'+(mine?'border-color:var(--hot-pink);':'')+'">'+p.name+'</span>';
+    });
+    html += '</div><div class="setup-label" style="margin:16px 0 8px 0;">Number of teams</div>';
+    html += '<input id="numTeamsInput" type="number" min="2" max="8" value="2" /><div style="height:12px;"></div>';
+    html += '<button class="btn-violet" id="shuffleBtn" style="width:100%;">Shuffle Teams Now</button></div>';
+    app.innerHTML = html;
+    document.getElementById('quitBtn').onclick = function(){ state.playerName = null; render(); };
+    document.getElementById('shuffleBtn').onclick = function(){
+      var n = parseInt(document.getElementById('numTeamsInput').value, 10) || 2;
+      if(n < 2) n = 2;
+      performShuffle(n);
+    };
+  }
+
   // ---------- GAME: classic (unchanged, no code system) ----------
   function renderGameClassic(){
     var left = timeLeftSec();
@@ -1113,6 +1173,8 @@
       renderGameMarioKart();
       return;
     }
+    if(!state.playerName){ renderClassicJoin(); return; }
+    if(state.mode === 'random' && !state.team){ renderClassicLobby(); return; }
     renderGameClassic();
   }
 
@@ -1139,6 +1201,7 @@
     setInterval(async function(){
       if(state.screen === 'game' && state.gameId && state.gameConfig){
         if(state.gameConfig.hasGameCode && !state.code){ return; }
+        if(!state.isQ && !state.playerName){ return; }
         await fetchSession(); await fetchTeams();
         if(state.isQ || state.playerName){
           await fetchLeaderboard();
