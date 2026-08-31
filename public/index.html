@@ -126,6 +126,27 @@
   .code-display{font-family:'Press Start 2P'; font-size:42px; letter-spacing:6px; color:var(--sky); text-align:center; padding:20px 0;}
   .code-input{font-family:'Press Start 2P' !important; font-size:22px !important; letter-spacing:8px !important; text-align:center; text-transform:uppercase;}
   .big-choice{width:100%; padding:20px; margin-bottom:12px; font-size:14px;}
+  .checkered-strip{
+    height:14px; margin:10px 0 18px 0; border-radius:2px;
+    background-image:
+      linear-gradient(45deg, #fff 25%, transparent 25%, transparent 75%, #fff 75%, #fff),
+      linear-gradient(45deg, #fff 25%, transparent 25%, transparent 75%, #fff 75%, #fff);
+    background-size: 14px 14px; background-position: 0 0, 7px 7px; background-color:#0a0a0a;
+  }
+  .podium-emoji{ font-size:14px; margin-right:4px; }
+  .trophy-banner{
+    text-align:center; padding:14px; margin-bottom:16px; border-radius:4px;
+    background:linear-gradient(90deg, rgba(255,201,60,0.15), rgba(255,47,126,0.15));
+    border:1px solid var(--gold); font-size:13px; text-transform:uppercase; letter-spacing:1px;
+  }
+  .challenge-icon-wrap{ text-align:center; margin-bottom:8px; }
+  .challenge-label{ text-align:center; font-size:16px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+  .challenge-exercise-huge{
+    text-align:center; font-size:34px; line-height:1.25; font-weight:700; color:#ffffff;
+    text-shadow:0 0 8px rgba(0,0,0,0.6); margin-bottom:10px; word-break:break-word;
+  }
+  .challenge-progress{ text-align:center; font-size:15px; color:var(--text); margin-bottom:14px; }
+  .btn-huge{ width:100%; padding:22px; font-size:20px; }
 </style>
 </head>
 <body>
@@ -235,7 +256,30 @@
   ];
   var MISSION_BONUS = 75;
   var DEFAULT_MINUTES = 20;
-  var TEAM_PALETTE = ['NEON','VOLT','BLAZE','NOVA','RIOT','STATIC','TURBO','CHAOS','SPARK','FURY','ECHO','ORBIT'];
+  var TEAM_PALETTE_INFO = [
+    {word:'NEON',   color:'#ff2f7e', emoji:'\u26A1'},
+    {word:'VOLT',   color:'#ffc93c', emoji:'\uD83D\uDD0B'},
+    {word:'BLAZE',  color:'#ff5252', emoji:'\uD83D\uDD25'},
+    {word:'NOVA',   color:'#9b5cff', emoji:'\u2728'},
+    {word:'RIOT',   color:'#34e8a0', emoji:'\uD83C\uDFAF'},
+    {word:'STATIC', color:'#3ec6ff', emoji:'\uD83D\uDCE1'},
+    {word:'TURBO',  color:'#ff8a3c', emoji:'\uD83D\uDE80'},
+    {word:'CHAOS',  color:'#c23cff', emoji:'\uD83D\uDCA5'},
+    {word:'SPARK',  color:'#ffe23c', emoji:'\uD83C\uDF1F'},
+    {word:'FURY',   color:'#ff3c6e', emoji:'\uD83C\uDF2A\uFE0F'},
+    {word:'ECHO',   color:'#3cffe0', emoji:'\uD83D\uDD0A'},
+    {word:'ORBIT',  color:'#7c3cff', emoji:'\uD83D\uDEF8'}
+  ];
+  var TEAM_PALETTE = TEAM_PALETTE_INFO.map(function(p){ return p.word; });
+
+  function teamFlair(teamName){
+    if(!teamName) return {word:'', color:'var(--sky)', emoji:'\uD83C\uDFCE\uFE0F'};
+    var upper = teamName.toUpperCase();
+    for(var i=0;i<TEAM_PALETTE_INFO.length;i++){
+      if(upper.indexOf(TEAM_PALETTE_INFO[i].word) >= 0) return TEAM_PALETTE_INFO[i];
+    }
+    return {word:'', color:'var(--sky)', emoji:'\uD83C\uDFCE\uFE0F'};
+  }
   var CODE_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
   var app = document.getElementById('app');
@@ -248,7 +292,7 @@
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
     isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
-    shellReps:10
+    selectedPowerup:null, selectedDifficulty:null
   };
 
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
@@ -259,6 +303,77 @@
   function codeKey(code, name){ return state.gameId + ':' + code + ':' + name; }
   function teamSlug(t){ return t.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,''); }
   function fmtPts(n){ return (Math.round(n*100)/100).toString().replace(/\.0$/,''); }
+  function racerAvatarSVG(color, size){
+    size = size || 28;
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 40 40" style="vertical-align:middle;">' +
+      '<circle cx="20" cy="20" r="18" fill="'+color+'" opacity="0.18"/>' +
+      '<circle cx="20" cy="20" r="13" fill="'+color+'"/>' +
+      '<path d="M8 20 A12 12 0 0 1 32 20 Z" fill="#0a0a0f" opacity="0.85"/>' +
+      '<rect x="9" y="18" width="22" height="6" rx="3" fill="#fff" opacity="0.9"/>' +
+      '<circle cx="20" cy="8" r="2.5" fill="#fff"/>' +
+      '</svg>';
+  }
+
+  var POWERUP_TYPES = [
+    { id:'redshell',   label:'Red Shell',   color:'#ff3b3b' },
+    { id:'greenshell', label:'Green Shell', color:'#3fbf5f' },
+    { id:'lightning',  label:'Lightning Bolt', color:'#ffd93b' },
+    { id:'banana',     label:'Banana Peel', color:'#f4c430' },
+    { id:'star',       label:'Star Power',  color:'#9b5cff' }
+  ];
+  var DIFFICULTY_TIERS = [
+    { id:'easy',    label:'Easy',    color:'var(--mint)',   repsMin:5,  repsMax:8  },
+    { id:'medium',  label:'Medium',  color:'var(--gold)',   repsMin:10, repsMax:15 },
+    { id:'hard',    label:'Hard',    color:'var(--danger)', repsMin:18, repsMax:25 },
+    { id:'extreme', label:'Extreme', color:'#ff0044',       repsMin:1,  repsMax:1  }
+  ];
+  function difficultyById(id){
+    for(var i=0;i<DIFFICULTY_TIERS.length;i++){ if(DIFFICULTY_TIERS[i].id === id) return DIFFICULTY_TIERS[i]; }
+    return DIFFICULTY_TIERS[0];
+  }
+  function hasExtremeChallenge(){
+    var found = false;
+    activeExercises().forEach(function(e){ if(e.id === 'extreme') found = true; });
+    return found;
+  }
+  function randomChallengeForDifficulty(difficultyId){
+    var tier = difficultyById(difficultyId);
+    if(difficultyId === 'extreme'){
+      var pool = activeExercises().filter(function(e){ return e.id === 'extreme'; });
+      if(pool.length === 0) return null;
+      return { exId: 'extreme', reps: 1 };
+    }
+    var pool2 = activeExercises();
+    if(pool2.length === 0) return null;
+    var ex = pool2[Math.floor(Math.random()*pool2.length)];
+    var reps = tier.repsMin + Math.floor(Math.random()*(tier.repsMax - tier.repsMin + 1));
+    return { exId: ex.id, reps: reps };
+  }
+  function powerupById(id){
+    for(var i=0;i<POWERUP_TYPES.length;i++){ if(POWERUP_TYPES[i].id === id) return POWERUP_TYPES[i]; }
+    return POWERUP_TYPES[0];
+  }
+  function powerupIconSVG(id, size){
+    size = size || 64;
+    var p = powerupById(id);
+    var c = p.color;
+    var shape = '';
+    if(id === 'redshell' || id === 'greenshell'){
+      shape = '<ellipse cx="32" cy="34" rx="22" ry="18" fill="'+c+'"/>' +
+        '<path d="M10 30 Q32 8 54 30" fill="none" stroke="#0a0a0f" stroke-width="4" opacity="0.35"/>' +
+        '<ellipse cx="32" cy="18" rx="10" ry="7" fill="#fff"/>' +
+        '<circle cx="24" cy="34" r="4" fill="#0a0a0f" opacity="0.5"/>' +
+        '<circle cx="40" cy="34" r="4" fill="#0a0a0f" opacity="0.5"/>' +
+        '<circle cx="32" cy="42" r="4" fill="#0a0a0f" opacity="0.5"/>';
+    } else if(id === 'lightning'){
+      shape = '<polygon points="36,6 16,36 28,36 22,58 48,26 34,26" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>';
+    } else if(id === 'banana'){
+      shape = '<path d="M18 50 C10 40 12 22 26 12 C30 10 34 12 33 16 C24 24 20 38 26 46 C30 51 24 54 18 50 Z" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>';
+    } else if(id === 'star'){
+      shape = '<polygon points="32,6 39,24 58,24 43,36 49,54 32,43 15,54 21,36 6,24 25,24" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>';
+    }
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 64 64">'+shape+'</svg>';
+  }
   function fmtTime(totalSec){
     if(totalSec < 0) totalSec = 0;
     var m = Math.floor(totalSec/60), s = Math.floor(totalSec%60);
@@ -402,6 +517,7 @@
   function renderRunOrder(slug){
     var td = state.teamData[slug];
     if(!td || !td.racer){ return '<div class="empty">Run order not set yet.</div>'; }
+    var flair = teamFlair(td.name);
     var rs = td.racer;
     var idx = rs.currentIndex % rs.order.length;
     var html = '';
@@ -410,7 +526,9 @@
       var tag = '';
       if(i === idx){ tag = ' <span style="color:var(--green);">&#9654; RACING</span>'; }
       else if(i === (idx+1) % rs.order.length){ tag = ' <span style="color:var(--gold);">UP NEXT</span>'; }
-      html += '<div class="lb-row'+(pid===state.devicePlayerId?' me':'')+'"><span class="lb-rank">'+(i+1)+'</span><span class="lb-name">'+label+tag+'</span></div>';
+      html += '<div class="lb-row'+(pid===state.devicePlayerId?' me':'')+'" style="border-left:3px solid '+flair.color+';">' +
+        '<span class="lb-rank">'+(i+1)+'</span>' + racerAvatarSVG(flair.color, 24) +
+        '<span class="lb-name" style="margin-left:8px;">'+label+tag+'</span></div>';
     });
     return html;
   }
@@ -498,18 +616,18 @@
     render();
   }
 
-  async function throwGreenShell(exId, reps){
+  async function throwPowerup(powerupId, exId, reps){
     if(!state.team) return;
     var slug = teamSlug(state.team);
     var existing = null;
     try{ var r = await window.storage.get(K('challenge:'+slug), true); existing = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ existing = null; }
-    if(existing){ alert('Your team already has an active Green Shell challenge.'); return; }
+    if(existing){ alert('Your team already has an active power-up challenge.'); return; }
     var ex = null; activeExercises().forEach(function(e){ if(e.id === exId) ex = e; });
     if(!ex){ alert('Pick a valid exercise.'); return; }
     var roster = [];
     state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === slug){ roster.push(e._key.replace(K('leaderboard:'),'')); } });
     if(roster.indexOf(state.devicePlayerId) === -1) roster.push(state.devicePlayerId);
-    var ch = { exId: ex.id, exName: ex.name, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [] };
+    var ch = { powerupId: powerupId, exId: ex.id, exName: ex.name, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [] };
     try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){ console.error(e); return; }
     state.myChallenge = ch;
     render();
@@ -627,12 +745,7 @@
     app.innerHTML = html;
     document.getElementById('backBtn').onclick = function(){ state.screen='detail'; render(); };
     document.getElementById('qBtn').onclick = function(){
-      state.isQ = true;
-      state.qDraft = {
-        minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
-        exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, included:true}; })
-      };
-      state.screen = 'qsetup';
+      startQSetup();
       render();
     };
     document.getElementById('paxBtn').onclick = function(){
@@ -640,6 +753,16 @@
       state.screen = 'paxcode';
       render();
     };
+  }
+
+  function startQSetup(){
+    state.isQ = true;
+    state.qDraft = {
+      minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
+      exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, included:true}; }),
+      extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100
+    };
+    state.screen = 'qsetup';
   }
 
   // ---------- Q SETUP ----------
@@ -669,6 +792,20 @@
     html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Strength Moves</span></div><div class="ex-pick-list">'+rows(strength)+'</div></div>';
     html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Travels</span></div><div class="ex-pick-list">'+rows(travel)+'</div></div>';
     html += '<button class="btn-sky btn-small" id="qAddExBtn">+ Add Custom Exercise</button>';
+
+    html += '<div class="setup-section" style="margin-top:16px;">';
+    html += '<div class="shell-panel" style="border-color:var(--danger);">';
+    html += '<label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; cursor:pointer;">' +
+      '<input type="checkbox" id="qExtremeToggle" '+(d.extremeEnabled?'checked':'')+' style="width:auto;" />' +
+      '<span class="shell-eyebrow" style="margin:0;">\uD83D\uDD25 Extreme Challenge (4th difficulty tier)</span></label>';
+    html += '<div class="mission-sub" style="margin-bottom:10px;">A one-off, name-your-own killer move \u2014 like running to the top of a hill. It shows up as its own \u201cExtreme\u201d option when Pit Crew throws a power-up.</div>';
+    html += '<div class="setup-label" style="text-align:left; margin-bottom:6px;">Name</div>';
+    html += '<input id="qExtremeName" type="text" maxlength="40" value="'+d.extremeName+'" style="margin-bottom:10px;" />';
+    html += '<div class="row">' +
+      '<div><span class="ex-mini-label" style="text-align:left;">Points</span><input id="qExtremePts" type="number" step="1" value="'+d.extremePts+'" /></div>' +
+      '<div><span class="ex-mini-label" style="text-align:left;">Boost %</span><input id="qExtremeBoost" type="number" step="5" value="'+d.extremeBoost+'" /></div>' +
+    '</div></div></div>';
+
     html += '<div style="height:14px;"></div><button class="btn-primary" id="createGameBtn" style="width:100%;">Create Game &amp; Get Code</button>';
     html += '</div>';
 
@@ -689,8 +826,15 @@
       d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:goal, pts:pts, boostPct:boostPct, included:true});
       renderQSetup();
     };
+    document.getElementById('qExtremeToggle').onchange = function(){ d.extremeEnabled = this.checked; };
+    document.getElementById('qExtremeName').onchange = function(){ d.extremeName = this.value.slice(0,40) || 'Extreme Challenge'; };
+    document.getElementById('qExtremePts').onchange = function(){ d.extremePts = parseFloat(this.value) || 1; };
+    document.getElementById('qExtremeBoost').onchange = function(){ d.extremeBoost = parseFloat(this.value) || 0; };
     document.getElementById('createGameBtn').onclick = async function(){
       var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct}; });
+      if(d.extremeEnabled && d.extremeName.trim()){
+        chosen.push({ id:'extreme', name:d.extremeName.trim(), cat:'travel', goal:1, pts:d.extremePts, boostPct:d.extremeBoost });
+      }
       if(chosen.length === 0){ alert('Pick at least one exercise or travel.'); return; }
       var code = genCode();
       for(var attempt=0; attempt<6; attempt++){
@@ -773,20 +917,30 @@
     var timeUp = started && left <= 0;
     var joined = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
 
-    var html = '<p class="eyebrow">You Are The Q</p><h1 class="title pixel" style="font-size:18px;">Game<br/>Dashboard</h1>';
+    var html = '<div class="checkered-strip"></div>';
+    html += '<p class="eyebrow">You Are The Q</p><h1 class="title pixel" style="font-size:18px;">Game<br/>Dashboard</h1>';
     html += '<div class="code-display">'+state.code+'</div>';
-    html += '<div class="empty" style="margin-bottom:14px;">Hand this code to your PAX</div><hr class="rule"/>';
+    html += '<div class="empty" style="margin-bottom:14px;">Hand this code to your PAX</div>';
+    html += '<div class="checkered-strip"></div>';
 
     if(started){
       html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'" style="margin-bottom:16px;"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>';
       if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
+      var leaderNow = lapStandings()[0];
+      if(leaderNow && leaderNow.laps > 0){
+        var leadFlair = teamFlair(leaderNow.name);
+        html += '<div class="trophy-banner">\uD83C\uDFC6 In The Lead: '+leadFlair.emoji+' '+leaderNow.name+'</div>';
+      }
     }
 
     html += '<div class="card" style="margin-bottom:16px;">';
     html += '<div class="setup-label" style="margin-bottom:8px;">PAX joined: '+joined.length+' / '+state.session.numPax+'</div>';
     html += '<div class="lobby-list">';
     if(joined.length===0){ html += '<span class="empty">No one has joined yet.</span>'; }
-    joined.forEach(function(p){ html += '<span class="lobby-chip">'+p.name+(p.team?' &middot; '+p.team:'')+'</span>'; });
+    joined.forEach(function(p){
+      var pf = p.team ? teamFlair(p.team) : null;
+      html += '<span class="lobby-chip">'+(pf?pf.emoji+' ':'')+p.name+(p.team?' &middot; '+p.team:'')+'</span>';
+    });
     html += '</div>';
 
     if(!state.teamsInfo){
@@ -839,25 +993,34 @@
     };
   }
 
+  function podiumTag(i){
+    if(i===0) return '<span class="podium-emoji">\uD83E\uDD47</span>';
+    if(i===1) return '<span class="podium-emoji">\uD83E\uDD48</span>';
+    if(i===2) return '<span class="podium-emoji">\uD83E\uDD49</span>';
+    return '';
+  }
+
   // ---------- shared standings + challenge banner ----------
   function renderStandings(){
     var html = '';
     var laps = lapStandings();
-    html += '<div class="leaderboard"><div class="lb-title">Lap Counter (Main Leaderboard)</div>';
+    html += '<div class="leaderboard"><div class="lb-title">\uD83C\uDFC1 Lap Counter (Main Leaderboard)</div>';
     if(laps.length === 0){ html += '<div class="empty">No laps logged yet.</div>'; }
     laps.forEach(function(t, i){
       var mine = state.team && t.name.toUpperCase() === state.team.toUpperCase();
-      html += '<div class="lb-row team'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
-        '<span class="lb-name">'+t.name+'</span><span class="lb-score">'+t.laps.toFixed(2)+' laps</span></div>';
+      var flair = teamFlair(t.name);
+      html += '<div class="lb-row team'+(mine?' me':'')+'" style="border-left:3px solid '+flair.color+';"><span class="lb-rank">'+podiumTag(i)+'#'+(i+1)+'</span>' +
+        '<span class="lb-name">'+flair.emoji+' '+t.name+'</span><span class="lb-score">'+t.laps.toFixed(2)+' laps</span></div>';
     });
     html += '</div>';
     var pits = pitStandings();
-    html += '<div class="leaderboard"><div class="lb-title">Pit Crew Points</div>';
+    html += '<div class="leaderboard"><div class="lb-title">\uD83D\uDD27 Pit Crew Points</div>';
     if(pits.length === 0){ html += '<div class="empty">No pit crew points yet.</div>'; }
     pits.forEach(function(t, i){
       var mine = state.team && t.name.toUpperCase() === state.team.toUpperCase();
-      html += '<div class="lb-row team'+(mine?' me':'')+'"><span class="lb-rank">#'+(i+1)+'</span>' +
-        '<span class="lb-name">'+t.name+'</span><span class="lb-score">'+fmtPts(t.score)+'</span></div>';
+      var flair = teamFlair(t.name);
+      html += '<div class="lb-row team'+(mine?' me':'')+'" style="border-left:3px solid '+flair.color+';"><span class="lb-rank">'+podiumTag(i)+'#'+(i+1)+'</span>' +
+        '<span class="lb-name">'+flair.emoji+' '+t.name+'</span><span class="lb-score">'+fmtPts(t.score)+'</span></div>';
     });
     html += '</div>';
     return html;
@@ -867,13 +1030,16 @@
     var html = '';
     var ch = state.myChallenge;
     if(!ch) return html;
+    var pu = powerupById(ch.powerupId || 'greenshell');
     var iAmDone = ch.doneBy.indexOf(state.devicePlayerId) >= 0;
-    html += '<div class="shell-panel"><p class="shell-eyebrow">&#128994; Green Shell Incoming</p>' +
-      '<p class="mission-title" style="font-size:14px;">Whole team: '+ch.reps+' x '+ch.exName+'</p>' +
-      '<div class="mission-sub">'+ch.doneBy.length+'/'+ch.roster.length+' teammates confirmed done</div>';
+    html += '<div class="shell-panel" style="border-color:'+pu.color+';">';
+    html += '<div class="challenge-icon-wrap">'+powerupIconSVG(pu.id, 84)+'</div>';
+    html += '<div class="challenge-label" style="color:'+pu.color+';">'+pu.label+' Incoming!</div>';
+    html += '<div class="challenge-exercise-huge">'+ch.reps+' &times; '+ch.exName+'</div>';
+    html += '<div class="challenge-progress">'+ch.doneBy.length+' / '+ch.roster.length+' teammates confirmed done</div>';
     if(!timeUp){
-      if(iAmDone){ html += '<div class="banner boost">Waiting on the rest of your team&hellip;</div>'; }
-      else { html += '<button class="btn-green" id="challengeDoneBtn" style="width:100%;">I\'m Done</button>'; }
+      if(iAmDone){ html += '<div class="banner boost" style="font-size:16px; padding:16px;">Waiting on the rest of your team&hellip;</div>'; }
+      else { html += '<button class="btn-green btn-huge" id="challengeDoneBtn">I\'M DONE</button>'; }
     }
     html += '</div>';
     return html;
@@ -1080,7 +1246,7 @@
     if(started){ html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>'; }
     html += '</div>';
     html += '<button class="btn-ghost" id="hubBtn">&larr; All Games</button>';
-    if(state.team){ html += '<div class="team-tag" style="margin:8px 0 0 0;">&#9650; '+state.team+'</div>'; }
+    if(state.team){ var hdrFlair = teamFlair(state.team); html += '<div class="team-tag" style="margin:8px 0 0 0;">'+hdrFlair.emoji+' '+state.team+'</div>'; }
     html += '<hr class="rule"/>';
 
     if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
@@ -1090,7 +1256,7 @@
     if(!iAmRacer && myTeamData && myTeamData.racer){
       var rs = myTeamData.racer;
       var curName = nameForId(rs.order[rs.currentIndex % rs.order.length]);
-      html += '<div class="banner boost">Current Racer: '+curName+'</div>';
+      var curFlair = teamFlair(myTeamData.name); html += '<div class="banner boost">'+curFlair.emoji+' Current Racer: '+curName+'</div>';
     }
 
     if(iAmRacer){
@@ -1119,11 +1285,26 @@
       html += '</div>';
 
       if(!state.myChallenge && !timeUp){
-        html += '<div class="shell-panel"><p class="shell-eyebrow">&#128994; Throw A Green Shell</p><div class="mission-sub">Hits the whole team &mdash; everyone must finish and confirm.</div>';
-        html += '<div class="row" style="margin-bottom:8px;"><select id="shellExSelect">';
-        exs.forEach(function(e){ html += '<option value="'+e.id+'">'+e.name+'</option>'; });
-        html += '</select><input id="shellRepsInput" type="number" min="1" value="'+state.shellReps+'" /></div>';
-        html += '<button class="btn-danger" id="throwShellBtn" style="width:100%; border:1px solid var(--danger);">Throw Green Shell</button></div>';
+        if(!state.selectedPowerup) state.selectedPowerup = POWERUP_TYPES[0].id;
+        if(!state.selectedDifficulty) state.selectedDifficulty = DIFFICULTY_TIERS[0].id;
+        html += '<div class="shell-panel"><p class="shell-eyebrow">&#127920; Throw A Power-Up</p><div class="mission-sub">Hits the whole team &mdash; everyone must finish and confirm. The exercise is a surprise \u2014 you just pick how tough it is.</div>';
+        html += '<div class="row" style="flex-wrap:wrap; gap:8px; margin:10px 0;">';
+        POWERUP_TYPES.forEach(function(p){
+          var sel = state.selectedPowerup === p.id;
+          html += '<div data-powerup="'+p.id+'" style="flex:0 0 auto; text-align:center; cursor:pointer; padding:8px; border-radius:4px; border:2px solid '+(sel?p.color:'var(--line)')+';">' +
+            powerupIconSVG(p.id, 44) + '<div style="font-size:9px; text-transform:uppercase; margin-top:2px; color:'+(sel?p.color:'var(--muted)')+';">'+p.label+'</div></div>';
+        });
+        html += '</div>';
+        html += '<div class="setup-label" style="margin:10px 0 8px 0;">Difficulty</div>';
+        html += '<div class="row" style="margin-bottom:12px; flex-wrap:wrap;">';
+        DIFFICULTY_TIERS.forEach(function(t){
+          if(t.id === 'extreme' && !hasExtremeChallenge()) return;
+          var sel = state.selectedDifficulty === t.id;
+          var extra = t.id === 'extreme' ? 'font-size:16px;' : 'font-size:12px;';
+          html += '<div data-difficulty="'+t.id+'" style="flex:1 1 60px; text-align:center; cursor:pointer; padding:12px 4px; border-radius:4px; border:2px solid '+(sel?t.color:'var(--line)')+'; color:'+(sel?t.color:'var(--muted)')+'; text-transform:uppercase; font-weight:700; '+extra+'">'+(t.id==='extreme'?'\uD83D\uDD25 ':'')+t.label+'</div>';
+        });
+        html += '</div>';
+        html += '<button class="btn-danger" id="throwShellBtn" style="width:100%; border:1px solid var(--danger);">Throw It</button></div>';
       }
     }
 
@@ -1141,12 +1322,17 @@
     var throwShellBtn = document.getElementById('throwShellBtn');
     if(throwShellBtn){
       throwShellBtn.onclick = function(){
-        var exId = document.getElementById('shellExSelect').value;
-        var reps = parseInt(document.getElementById('shellRepsInput').value, 10) || 1;
-        state.shellReps = reps;
-        throwGreenShell(exId, reps);
+        var picked = randomChallengeForDifficulty(state.selectedDifficulty || DIFFICULTY_TIERS[0].id);
+        if(!picked){ alert('No exercises are available to throw right now.'); return; }
+        throwPowerup(state.selectedPowerup || POWERUP_TYPES[0].id, picked.exId, picked.reps);
       };
     }
+    app.querySelectorAll('[data-powerup]').forEach(function(el){
+      el.onclick = function(){ state.selectedPowerup = this.getAttribute('data-powerup'); renderGame(); };
+    });
+    app.querySelectorAll('[data-difficulty]').forEach(function(el){
+      el.onclick = function(){ state.selectedDifficulty = this.getAttribute('data-difficulty'); renderGame(); };
+    });
     app.querySelectorAll('[data-ex]').forEach(function(btn){ btn.onclick = function(){ tap(this.getAttribute('data-ex'), parseInt(this.getAttribute('data-delta'),10)); }; });
   }
 
@@ -1199,8 +1385,13 @@
 
     var params = new URLSearchParams(window.location.search);
     var joinGame = params.get('join');
+    var setupGame = params.get('setup');
     var prefillCode = params.get('code');
-    if(joinGame && GAMES[joinGame] && GAMES[joinGame].hasGameCode){
+    if(setupGame && GAMES[setupGame] && GAMES[setupGame].hasGameCode){
+      state.gameId = setupGame;
+      state.gameConfig = GAMES[setupGame];
+      startQSetup();
+    } else if(joinGame && GAMES[joinGame] && GAMES[joinGame].hasGameCode){
       state.gameId = joinGame;
       state.gameConfig = GAMES[joinGame];
       state.isQ = false;
