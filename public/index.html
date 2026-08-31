@@ -247,7 +247,7 @@
     session:null, teamsInfo:null,
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
-    isQ:false, code:null, codeError:null, qDraft:null,
+    isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
     shellReps:10
   };
 
@@ -717,7 +717,7 @@
     var html = '<button class="btn-ghost" id="backBtn">&larr; Back</button>';
     html += '<p class="eyebrow" style="margin-top:14px;">Mario Kart Style</p><h1 class="title pixel" style="font-size:20px;">Enter Game<br/>Code</h1><hr class="rule"/>';
     html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Code from your Q</div>';
-    html += '<input id="codeInput" class="code-input" type="text" maxlength="4" placeholder="XXXX" />';
+    html += '<input id="codeInput" class="code-input" type="text" maxlength="4" placeholder="XXXX" value="'+(state.prefillCode||'')+'" />';
     if(state.codeError){ html += '<div class="banner timeup" style="margin-top:12px;">'+state.codeError+'</div>'; }
     html += '<div style="height:12px;"></div><button class="btn-primary" id="codeJoinBtn" style="width:100%;">Continue</button></div>';
     app.innerHTML = html;
@@ -1196,6 +1196,19 @@
     }
     await loadDeviceId();
     state.loading = false;
+
+    var params = new URLSearchParams(window.location.search);
+    var joinGame = params.get('join');
+    var prefillCode = params.get('code');
+    if(joinGame && GAMES[joinGame] && GAMES[joinGame].hasGameCode){
+      state.gameId = joinGame;
+      state.gameConfig = GAMES[joinGame];
+      state.isQ = false;
+      state.codeError = null;
+      state.prefillCode = prefillCode ? prefillCode.toUpperCase() : null;
+      state.screen = 'paxcode';
+    }
+
     render();
 
     setInterval(async function(){
