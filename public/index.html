@@ -147,6 +147,12 @@
   }
   .challenge-progress{ text-align:center; font-size:15px; color:var(--text); margin-bottom:14px; }
   .btn-huge{ width:100%; padding:22px; font-size:20px; }
+  .difficulty-btn{
+    width:100%; text-align:center; cursor:pointer; padding:26px 10px; margin-bottom:10px;
+    border-radius:6px; border:3px solid var(--line); text-transform:uppercase; font-weight:700;
+    font-size:26px; letter-spacing:1px; background:#0d0b14;
+  }
+  .difficulty-btn.selected{ background:rgba(255,255,255,0.06); }
 </style>
 </head>
 <body>
@@ -303,6 +309,38 @@
   function codeKey(code, name){ return state.gameId + ':' + code + ':' + name; }
   function teamSlug(t){ return t.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,''); }
   function fmtPts(n){ return (Math.round(n*100)/100).toString().replace(/\.0$/,''); }
+  var audioCtx = null;
+  function unlockAudio(){
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
+    }
+    if(audioCtx && audioCtx.state === 'suspended'){
+      try{ audioCtx.resume(); }catch(e){}
+    }
+  }
+  function playAlertTone(){
+    if(!audioCtx) return;
+    try{
+      var now = audioCtx.currentTime;
+      [0, 0.16, 0.32].forEach(function(offset, i){
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = (i % 2 === 0) ? 880 : 660;
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.35, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.15);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.16);
+      });
+    }catch(e){ console.error('alert tone failed', e); }
+  }
+  function notifyPowerupHit(){
+    try{ if(navigator.vibrate){ navigator.vibrate([250,120,250,120,400]); } }catch(e){}
+    playAlertTone();
+  }
+
   function racerAvatarSVG(color, size){
     size = size || 28;
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 40 40" style="vertical-align:middle;">' +
@@ -322,10 +360,10 @@
     { id:'star',       label:'Star Power',  color:'#9b5cff' }
   ];
   var DIFFICULTY_TIERS = [
-    { id:'easy',    label:'Easy',    color:'var(--mint)',   repsMin:5,  repsMax:8  },
-    { id:'medium',  label:'Medium',  color:'var(--gold)',   repsMin:10, repsMax:15 },
-    { id:'hard',    label:'Hard',    color:'var(--danger)', repsMin:18, repsMax:25 },
-    { id:'extreme', label:'Extreme', color:'#ff0044',       repsMin:1,  repsMax:1  }
+    { id:'easy',    label:'Easy',       color:'var(--mint)',   repsMin:5,  repsMax:8  },
+    { id:'medium',  label:'Medium',     color:'var(--gold)',   repsMin:10, repsMax:15 },
+    { id:'hard',    label:'Hard',       color:'var(--danger)', repsMin:18, repsMax:25 },
+    { id:'extreme', label:'Extra Hard', color:'#ff0044',       repsMin:1,  repsMax:1  }
   ];
   function difficultyById(id){
     for(var i=0;i<DIFFICULTY_TIERS.length;i++){ if(DIFFICULTY_TIERS[i].id === id) return DIFFICULTY_TIERS[i]; }
@@ -553,8 +591,12 @@
   async function refreshMyChallenge(){
     if(!state.team){ state.myChallenge = null; return; }
     var slug = teamSlug(state.team);
+    var prevAt = state.myChallenge ? state.myChallenge.issuedAt : null;
     try{ var r = await window.storage.get(K('challenge:'+slug), true); state.myChallenge = (r && r.value) ? JSON.parse(r.value) : null; }
     catch(e){ state.myChallenge = null; }
+    if(state.myChallenge && state.myChallenge.issuedAt !== prevAt){
+      notifyPowerupHit();
+    }
   }
 
   function lapInfoFor(slug){
@@ -630,6 +672,7 @@
     var ch = { powerupId: powerupId, exId: ex.id, exName: ex.name, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [] };
     try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){ console.error(e); return; }
     state.myChallenge = ch;
+    notifyPowerupHit();
     render();
   }
 
@@ -891,6 +934,7 @@
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
+      unlockAudio();
       state.playerName = v.slice(0,16).toUpperCase();
       state.mode = 'random';
       if(!state.devicePlayerId){ state.devicePlayerId = uid(); try{ await window.storage.set('device-player-id', state.devicePlayerId, false); }catch(e){} }
@@ -1068,6 +1112,7 @@
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
+      unlockAudio();
       if(state.mode === 'team'){
         var t = document.getElementById('teamInput').value.trim();
         if(!t){ document.getElementById('teamInput').focus(); return; }
@@ -1295,15 +1340,12 @@
             powerupIconSVG(p.id, 44) + '<div style="font-size:9px; text-transform:uppercase; margin-top:2px; color:'+(sel?p.color:'var(--muted)')+';">'+p.label+'</div></div>';
         });
         html += '</div>';
-        html += '<div class="setup-label" style="margin:10px 0 8px 0;">Difficulty</div>';
-        html += '<div class="row" style="margin-bottom:12px; flex-wrap:wrap;">';
+        html += '<div class="setup-label" style="margin:14px 0 10px 0;">Difficulty</div>';
         DIFFICULTY_TIERS.forEach(function(t){
           if(t.id === 'extreme' && !hasExtremeChallenge()) return;
           var sel = state.selectedDifficulty === t.id;
-          var extra = t.id === 'extreme' ? 'font-size:16px;' : 'font-size:12px;';
-          html += '<div data-difficulty="'+t.id+'" style="flex:1 1 60px; text-align:center; cursor:pointer; padding:12px 4px; border-radius:4px; border:2px solid '+(sel?t.color:'var(--line)')+'; color:'+(sel?t.color:'var(--muted)')+'; text-transform:uppercase; font-weight:700; '+extra+'">'+(t.id==='extreme'?'\uD83D\uDD25 ':'')+t.label+'</div>';
+          html += '<div data-difficulty="'+t.id+'" class="difficulty-btn'+(sel?' selected':'')+'" style="border-color:'+(sel?t.color:'var(--line)')+'; color:'+t.color+';">'+(t.id==='extreme'?'\uD83D\uDD25 ':'')+t.label+'</div>';
         });
-        html += '</div>';
         html += '<button class="btn-danger" id="throwShellBtn" style="width:100%; border:1px solid var(--danger);">Throw It</button></div>';
       }
     }
