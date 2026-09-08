@@ -64,6 +64,13 @@
   .ex-pick-name{flex:1; text-transform:uppercase;}
   .ex-mini-input{width:56px !important; padding:6px !important; font-size:11px !important; text-align:center;}
   .ex-mini-label{font-size:9px; color:var(--muted); display:block; text-align:center; margin-bottom:2px;}
+  .ex-setup-card{border:1px solid var(--line); border-radius:4px; padding:12px; margin-bottom:8px;}
+  .ex-setup-head{display:flex; align-items:center; gap:8px; margin-bottom:10px;}
+  .ex-setup-head input[type=checkbox]{width:auto; margin:0;}
+  .ex-setup-name{flex:1; text-transform:uppercase; font-weight:700; font-size:13px;}
+  .ex-setup-fields{display:flex; gap:8px; flex-wrap:wrap;}
+  .ex-setup-fields > div{flex:1; min-width:70px;}
+  .ex-setup-fields select{padding:8px; font-size:12px;}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0;}
   @media (max-width:400px){ .grid{grid-template-columns:1fr;} }
   .ex-card{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:12px; display:flex; flex-direction:column; gap:8px;}
@@ -246,19 +253,18 @@
   };
 
   var MASTER_EXERCISES = [
-    {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0},
-    {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0},
-    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:0},
-    {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0},
-    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:0},
-    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:0},
-    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:0},
-    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:0},
-    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:15},
-    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:15},
-    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:10},
-    {id:'sledpush',     name:'Sled Push',        pts:40,   goal:1, cat:'travel',   boostPct:15},
-    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:10}
+    {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:10},
+    {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
+    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:0,  difficulty:'hard',   reps:10},
+    {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
+    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
+    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
+    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
+    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
+    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:15, difficulty:'hard',   reps:null},
+    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:15, difficulty:'easy',   reps:null},
+    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:10, difficulty:'medium', reps:null},
+    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:10, difficulty:'medium', reps:null}
   ];
   var MISSION_BONUS = 75;
   var DEFAULT_MINUTES = 20;
@@ -360,9 +366,9 @@
     { id:'star',       label:'Star Power',  color:'#9b5cff' }
   ];
   var DIFFICULTY_TIERS = [
-    { id:'easy',   label:'Easy',   color:'var(--mint)',   repsMin:5,  repsMax:8,  meterPct:10 },
-    { id:'medium', label:'Medium', color:'var(--gold)',   repsMin:10, repsMax:15, meterPct:20 },
-    { id:'hard',   label:'Hard',   color:'var(--danger)', repsMin:18, repsMax:25, meterPct:35 }
+    { id:'easy',   label:'Easy',   color:'var(--mint)',   meterPct:20 },
+    { id:'medium', label:'Medium', color:'var(--gold)',   meterPct:35 },
+    { id:'hard',   label:'Hard',   color:'var(--danger)', meterPct:60 }
   ];
   function difficultyById(id){
     for(var i=0;i<DIFFICULTY_TIERS.length;i++){ if(DIFFICULTY_TIERS[i].id === id) return DIFFICULTY_TIERS[i]; }
@@ -645,26 +651,48 @@
     render();
   }
 
+  var METER_REFERENCE_TEAM_SIZE = 4;
+  function teamMemberCount(teamName){
+    if(!teamName) return METER_REFERENCE_TEAM_SIZE;
+    var slug = teamSlug(teamName);
+    var count = 0;
+    state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === slug) count++; });
+    return count > 0 ? count : METER_REFERENCE_TEAM_SIZE;
+  }
+
   function assignExercise(difficultyId){
+    if(difficultyId === 'extreme'){
+      var extremeEx = findExtremeExercise();
+      if(!extremeEx){ alert('No Extreme Challenge is set up for this game.'); return; }
+      state.assignedExercise = { difficultyId: 'extreme', exId: extremeEx.id, exName: extremeEx.name, cat: extremeEx.cat, pts: extremeEx.pts, boostPct: extremeEx.boostPct||0, reps: 1, meterPct: 100 };
+      render();
+      return;
+    }
     var tier = difficultyById(difficultyId);
-    var pool = activeExercises();
-    if(pool.length === 0){ alert('No exercises are set up for this game.'); return; }
+    var pool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === difficultyId; });
+    if(pool.length === 0){ alert('No exercises are set to '+tier.label+' difficulty for this game.'); return; }
     var ex = pool[Math.floor(Math.random()*pool.length)];
-    var reps = tier.repsMin + Math.floor(Math.random()*(tier.repsMax - tier.repsMin + 1));
-    state.assignedExercise = { difficultyId: difficultyId, exId: ex.id, exName: ex.name, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, meterPct: tier.meterPct };
+    var reps = (ex.cat === 'travel') ? null : (ex.reps || 10);
+    state.assignedExercise = { difficultyId: difficultyId, exId: ex.id, exName: ex.name, cat: ex.cat, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, meterPct: tier.meterPct };
     render();
   }
 
   async function completeAssignedExercise(){
     var a = state.assignedExercise;
     if(!a) return;
-    var earned = a.pts * a.reps * (1 + (a.boostPct||0)/100);
+    var repCount = a.reps || 1;
+    var earned = a.pts * repCount * (1 + (a.boostPct||0)/100);
     state.tapEarnings += earned;
     if(state.team){
       var slug = teamSlug(state.team);
       var meter = 0;
       try{ var r = await window.storage.get(K('meter:'+slug), true); meter = (r && r.value) ? parseFloat(r.value) : 0; }catch(e){ meter = 0; }
-      meter = Math.min(100, meter + a.meterPct);
+      var contribution = a.meterPct;
+      if(a.difficultyId !== 'extreme'){
+        var size = teamMemberCount(state.team);
+        contribution = a.meterPct * (METER_REFERENCE_TEAM_SIZE / size);
+      }
+      meter = Math.min(100, meter + contribution);
       try{ await window.storage.set(K('meter:'+slug), String(meter), true); }catch(e){ console.error(e); }
       if(meter >= 100){
         await refreshTeamsData();
@@ -687,20 +715,20 @@
     var existing = null;
     try{ var r2 = await window.storage.get(K('challenge:'+targetSlug), true); existing = (r2 && r2.value) ? JSON.parse(r2.value) : null; }catch(e){ existing = null; }
     if(existing) return false;
-    var pool = activeExercises();
     var extremeEx = findExtremeExercise();
     var exObj, reps;
     if(extremeEx){ exObj = extremeEx; reps = 1; }
     else {
+      var hardPool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === 'hard'; });
+      var pool = hardPool.length ? hardPool : activeExercises().filter(function(e){ return e.id !== 'extreme'; });
       if(pool.length === 0) return false;
-      var hardTier = difficultyById('hard');
       exObj = pool[Math.floor(Math.random()*pool.length)];
-      reps = hardTier.repsMin + Math.floor(Math.random()*(hardTier.repsMax - hardTier.repsMin + 1));
+      reps = (exObj.cat === 'travel') ? 1 : (exObj.reps || 10);
     }
     var roster = [];
     state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === targetSlug){ roster.push(e._key.replace(K('leaderboard:'),'')); } });
     var powerupId = POWERUP_TYPES[Math.floor(Math.random()*POWERUP_TYPES.length)].id;
-    var ch = { powerupId: powerupId, exId: exObj.id, exName: exObj.name, pts: exObj.pts, boostPct: exObj.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [], fromTeam: state.team, toTeam: targetTeamName };
+    var ch = { powerupId: powerupId, exId: exObj.id, exName: exObj.name, cat: exObj.cat, pts: exObj.pts, boostPct: exObj.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [], fromTeam: state.team, toTeam: targetTeamName };
     try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
     try{ await window.storage.set(K('meter:'+mySlug), '0', true); }catch(e){}
     state.toast = { msg: 'Power unleashed on '+targetTeamName+'!', until: Date.now()+5000 };
@@ -835,7 +863,7 @@
     state.isQ = true;
     state.qDraft = {
       minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
-      exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, included:true}; }),
+      exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, difficulty:e.difficulty, reps:e.reps, included:true}; }),
       extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100
     };
     state.screen = 'qsetup';
@@ -850,10 +878,24 @@
     function rows(list){
       var h = '';
       list.forEach(function(e){
-        h += '<div class="ex-pick-row"><input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
-          '<span class="ex-pick-name">'+e.name+'</span>' +
-          '<div><span class="ex-mini-label">pts</span><input class="ex-mini-input" type="number" step="0.25" data-qpts="'+e.id+'" value="'+e.pts+'" /></div>' +
-          '<div><span class="ex-mini-label">boost%</span><input class="ex-mini-input" type="number" step="5" data-qboost="'+e.id+'" value="'+e.boostPct+'" /></div></div>';
+        h += '<div class="ex-setup-card"><div class="ex-setup-head">' +
+          '<input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
+          '<span class="ex-setup-name">'+e.name+'</span></div>';
+        h += '<div class="ex-setup-fields">';
+        h += '<div><span class="ex-mini-label" style="text-align:left;">Difficulty</span><select data-qdiff="'+e.id+'">' +
+          DIFFICULTY_TIERS.map(function(t){ return '<option value="'+t.id+'" '+(e.difficulty===t.id?'selected':'')+'>'+t.label+'</option>'; }).join('') +
+          '</select></div>';
+        if(e.cat === 'strength'){
+          h += '<div><span class="ex-mini-label" style="text-align:left;">Reps</span><div style="display:flex; gap:4px;">' +
+            '<button type="button" class="btn-ghost btn-small" data-repsminus="'+e.id+'" style="padding:8px 10px;">&minus;</button>' +
+            '<input type="number" min="1" step="1" data-qreps="'+e.id+'" value="'+(e.reps||10)+'" style="text-align:center;" />' +
+            '<button type="button" class="btn-ghost btn-small" data-repsplus="'+e.id+'" style="padding:8px 10px;">+</button></div></div>';
+        } else {
+          h += '<div><span class="ex-mini-label" style="text-align:left;">Reps</span><input type="text" value="\u2014 (one-time)" disabled style="color:var(--muted);" /></div>';
+        }
+        h += '<div><span class="ex-mini-label" style="text-align:left;">Points</span><input type="number" step="0.25" data-qpts="'+e.id+'" value="'+e.pts+'" /></div>';
+        h += '<div><span class="ex-mini-label" style="text-align:left;">Boost %</span><input type="number" step="5" data-qboost="'+e.id+'" value="'+e.boostPct+'" /></div>';
+        h += '</div></div>';
       });
       return h;
     }
@@ -891,14 +933,48 @@
     document.getElementById('qNumPax').onchange = function(){ d.numPax = parseInt(this.value,10)||1; };
     document.getElementById('qNumTeams').onchange = function(){ d.numTeams = parseInt(this.value,10)||2; };
     app.querySelectorAll('[data-qpick]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpick')) e.included = el.checked; }); }; });
+    var REP_SUGGESTIONS = { easy: 8, medium: 15, hard: 22 };
+    app.querySelectorAll('[data-qdiff]').forEach(function(el){
+      el.onchange = function(){
+        var id = el.getAttribute('data-qdiff');
+        d.exercises.forEach(function(e){
+          if(e.id === id){
+            e.difficulty = el.value;
+            if(e.cat === 'strength' && REP_SUGGESTIONS[el.value]){ e.reps = REP_SUGGESTIONS[el.value]; }
+          }
+        });
+        renderQSetup();
+      };
+    });
+    app.querySelectorAll('[data-qreps]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qreps')) e.reps = parseInt(el.value,10)||1; }); }; });
+    app.querySelectorAll('[data-repsminus]').forEach(function(el){
+      el.onclick = function(){
+        var id = el.getAttribute('data-repsminus');
+        d.exercises.forEach(function(e){ if(e.id===id){ e.reps = Math.max(1, (e.reps||10) - 1); } });
+        renderQSetup();
+      };
+    });
+    app.querySelectorAll('[data-repsplus]').forEach(function(el){
+      el.onclick = function(){
+        var id = el.getAttribute('data-repsplus');
+        d.exercises.forEach(function(e){ if(e.id===id){ e.reps = (e.reps||10) + 1; } });
+        renderQSetup();
+      };
+    });
     app.querySelectorAll('[data-qpts]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpts')) e.pts = parseFloat(el.value)||0; }); }; });
     app.querySelectorAll('[data-qboost]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qboost')) e.boostPct = parseFloat(el.value)||0; }); }; });
     document.getElementById('qAddExBtn').onclick = function(){
       var name = prompt('Exercise name (e.g. Wall Ball):'); if(!name) return;
-      var cat = confirm('Is this a Travel move (distance-based)? Cancel = Strength move (rep-based)') ? 'travel' : 'strength';
-      var pts = parseFloat(prompt('Points per rep:', '1')) || 1;
+      var cat = confirm('Is this a Travel move (distance-based, no rep count)? Cancel = Strength move (rep-based)') ? 'travel' : 'strength';
+      var pts = parseFloat(prompt('Points per rep (or per completion for a travel):', '1')) || 1;
       var boostPct = parseFloat(prompt('Booster %:', '0')) || 0;
-      d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:1, pts:pts, boostPct:boostPct, included:true});
+      var difficulty = 'medium';
+      var diffAnswer = (prompt('Difficulty: type easy, medium, or hard', 'medium') || 'medium').toLowerCase();
+      if(diffAnswer.indexOf('easy') === 0) difficulty = 'easy';
+      else if(diffAnswer.indexOf('hard') === 0) difficulty = 'hard';
+      var reps = 10;
+      if(cat === 'strength'){ reps = parseInt(prompt('Rep count:', '10'),10) || 10; }
+      d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:1, pts:pts, boostPct:boostPct, difficulty:difficulty, reps:reps, included:true});
       renderQSetup();
     };
     document.getElementById('qExtremeToggle').onchange = function(){ d.extremeEnabled = this.checked; };
@@ -906,7 +982,7 @@
     document.getElementById('qExtremePts').onchange = function(){ d.extremePts = parseFloat(this.value) || 1; };
     document.getElementById('qExtremeBoost').onchange = function(){ d.extremeBoost = parseFloat(this.value) || 0; };
     document.getElementById('createGameBtn').onclick = async function(){
-      var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct}; });
+      var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, difficulty:e.difficulty, reps:e.reps}; });
       if(d.extremeEnabled && d.extremeName.trim()){
         chosen.push({ id:'extreme', name:d.extremeName.trim(), cat:'travel', goal:1, pts:d.extremePts, boostPct:d.extremeBoost });
       }
@@ -1115,7 +1191,7 @@
     if(ch.fromTeam){
       html += '<div style="text-align:center; font-size:13px; color:var(--muted); margin-bottom:8px; text-transform:uppercase;">'+(fromFlair?fromFlair.emoji+' ':'')+ch.fromTeam+' hit your team!</div>';
     }
-    html += '<div class="challenge-exercise-huge">'+ch.reps+' &times; '+ch.exName+'</div>';
+    html += '<div class="challenge-exercise-huge">'+(ch.cat==='travel' ? ch.exName : (ch.reps+' &times; '+ch.exName))+'</div>';
     html += '<div class="challenge-progress">'+ch.doneBy.length+' / '+ch.roster.length+' teammates confirmed done</div>';
     if(!timeUp){
       if(iAmDone){ html += '<div class="banner boost" style="font-size:16px; padding:16px;">Waiting on the rest of your team&hellip;</div>'; }
@@ -1352,10 +1428,10 @@
 
       if(state.assignedExercise){
         var a = state.assignedExercise;
-        var aTier = difficultyById(a.difficultyId);
+        var aTier = (a.difficultyId === 'extreme') ? {label:'\uD83D\uDD25 Hard Run', color:'#ff0044'} : difficultyById(a.difficultyId);
         html += '<div class="shell-panel" style="border-color:'+aTier.color+';">';
         html += '<div class="challenge-label" style="color:'+aTier.color+';">'+aTier.label+' Exercise</div>';
-        html += '<div class="challenge-exercise-huge">'+a.reps+' &times; '+a.exName+'</div>';
+        html += '<div class="challenge-exercise-huge">'+(a.cat==='travel' ? a.exName : (a.reps+' &times; '+a.exName))+'</div>';
         html += (timeUp ? '' : '<button class="btn-green btn-huge" id="assignedDoneBtn">I\'M DONE</button>');
         html += '</div>';
       } else if(!timeUp){
@@ -1363,6 +1439,9 @@
         DIFFICULTY_TIERS.forEach(function(t){
           html += '<div data-assign="'+t.id+'" class="difficulty-btn" style="border-color:'+t.color+'; color:'+t.color+';">'+t.label+'</div>';
         });
+        if(findExtremeExercise()){
+          html += '<div data-assign="extreme" class="difficulty-btn" style="border-color:#ff0044; color:#ff0044;">\uD83D\uDD25 Hard Run</div>';
+        }
       }
     }
 
