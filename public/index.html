@@ -307,7 +307,7 @@
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
     isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
-    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null
+    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null
   };
 
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
@@ -319,6 +319,8 @@
   function teamSlug(t){ return t.trim().toUpperCase().replace(/\s+/g,'_').replace(/[^A-Z0-9_]/g,''); }
   function fmtPts(n){ return (Math.round(n*100)/100).toString().replace(/\.0$/,''); }
   var audioCtx = null;
+  var primedAudioEl = null;
+  var SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
   function unlockAudio(){
     if(!audioCtx){
       try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
@@ -326,8 +328,20 @@
     if(audioCtx && audioCtx.state === 'suspended'){
       try{ audioCtx.resume(); }catch(e){}
     }
+    if(!primedAudioEl){
+      try{
+        primedAudioEl = new Audio(SILENT_WAV);
+        primedAudioEl.play().then(function(){ primedAudioEl.pause(); }).catch(function(){});
+      }catch(e){ primedAudioEl = null; }
+    }
+    try{
+      if('Notification' in window && Notification.permission === 'default'){
+        Notification.requestPermission();
+      }
+    }catch(e){}
   }
   function playAlertTone(){
+    if(audioCtx && audioCtx.state === 'suspended'){ try{ audioCtx.resume(); }catch(e){} }
     if(!audioCtx) return;
     try{
       var now = audioCtx.currentTime;
@@ -345,9 +359,17 @@
       });
     }catch(e){ console.error('alert tone failed', e); }
   }
-  function notifyPowerupHit(){
+  function notifyPowerupHit(msg){
     try{ if(navigator.vibrate){ navigator.vibrate([250,120,250,120,400]); } }catch(e){}
     playAlertTone();
+    try{
+      if('Notification' in window && Notification.permission === 'granted'){
+        new Notification('Rep Rumble Arcade', { body: msg || 'Your team got hit with a power-up!' });
+      }
+    }catch(e){}
+  }
+  function hapticTap(){
+    try{ if(navigator.vibrate){ navigator.vibrate(20); } }catch(e){}
   }
 
   function racerAvatarSVG(color, size){
@@ -362,11 +384,11 @@
   }
 
   var POWERUP_TYPES = [
-    { id:'redshell',   label:'Red Shell',   color:'#ff3b3b' },
-    { id:'greenshell', label:'Green Shell', color:'#3fbf5f' },
-    { id:'lightning',  label:'Lightning Bolt', color:'#ffd93b' },
-    { id:'banana',     label:'Banana Peel', color:'#f4c430' },
-    { id:'star',       label:'Star Power',  color:'#9b5cff' }
+    { id:'redshell',   label:'Red Shell',      color:'#ff3b3b', attackReps:15 },
+    { id:'greenshell', label:'Green Shell',    color:'#3fbf5f', attackReps:10 },
+    { id:'lightning',  label:'Lightning Bolt', color:'#ffd93b', attackReps:null },
+    { id:'banana',     label:'Banana Peel',    color:'#f4c430', attackReps:8  },
+    { id:'star',       label:'Star Power',     color:'#9b5cff', attackReps:20 }
   ];
   var DIFFICULTY_TIERS = [
     { id:'easy',   label:'Easy',   color:'var(--mint)',   meterPct:20 },
@@ -574,12 +596,13 @@
     var data = {};
     for(var i=0;i<slugs.length;i++){
       var slug = slugs[i];
-      var laps = []; var pcbonus = 0; var racer = null; var meter = 0;
+      var laps = []; var pcbonus = 0; var racer = null; var meter = 0; var challenge = null;
       try{ var r1 = await window.storage.get(K('laps:'+slug), true); laps = (r1 && r1.value) ? JSON.parse(r1.value) : []; }catch(e){ laps = []; }
       try{ var r2 = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (r2 && r2.value) ? parseFloat(r2.value) : 0; }catch(e){ pcbonus = 0; }
       try{ var r3 = await window.storage.get(K('racer:'+slug), true); racer = (r3 && r3.value) ? JSON.parse(r3.value) : null; }catch(e){ racer = null; }
       try{ var r4 = await window.storage.get(K('meter:'+slug), true); meter = (r4 && r4.value) ? parseFloat(r4.value) : 0; }catch(e){ meter = 0; }
-      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer, meter: meter };
+      try{ var r5 = await window.storage.get(K('challenge:'+slug), true); challenge = (r5 && r5.value) ? JSON.parse(r5.value) : null; }catch(e){ challenge = null; }
+      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer, meter: meter, challenge: challenge };
     }
     state.teamData = data;
   }
@@ -591,7 +614,8 @@
     try{ var r = await window.storage.get(K('challenge:'+slug), true); state.myChallenge = (r && r.value) ? JSON.parse(r.value) : null; }
     catch(e){ state.myChallenge = null; }
     if(state.myChallenge && state.myChallenge.issuedAt !== prevAt){
-      notifyPowerupHit();
+      var fromWho = state.myChallenge.fromTeam ? (state.myChallenge.fromTeam + ' hit your team!') : 'Your team got hit with a power-up!';
+      notifyPowerupHit(fromWho);
     }
   }
 
@@ -617,6 +641,65 @@
     });
     arr.sort(function(a,b){ return b.laps - a.laps; });
     return arr;
+  }
+
+  function renderTrackView(){
+    var slugs = Object.keys(state.teamData);
+    if(slugs.length === 0) return '<div class="empty">No teams on the track yet.</div>';
+    var cx = 420, cy = 220, rx = 360, ry = 170;
+    var svg = '<svg viewBox="0 0 840 440" style="width:100%; height:auto;">';
+    svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(rx+34)+'" ry="'+(ry+34)+'" fill="none" stroke="#2b2838" stroke-width="68"/>';
+    svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="none" stroke="#55506a" stroke-width="2" stroke-dasharray="10 10"/>';
+    svg += '<polygon points="'+(cx)+',24 '+(cx-14)+',44 '+(cx+14)+',44" fill="#fff"/>';
+    slugs.forEach(function(slug){
+      var td = state.teamData[slug];
+      var info = lapInfoFor(slug);
+      var flair = teamFlair(td.name);
+      var angle = (info.fraction * Math.PI * 2) - (Math.PI/2);
+      var x = cx + rx * Math.cos(angle);
+      var y = cy + ry * Math.sin(angle);
+      svg += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="22" fill="'+flair.color+'" stroke="#000" stroke-width="3"/>';
+      svg += '<text x="'+x.toFixed(1)+'" y="'+(y.toFixed(1))+'" text-anchor="middle" dominant-baseline="central" font-size="20">'+flair.emoji+'</text>';
+      var labelY = y + (y > cy ? 40 : -34);
+      svg += '<text x="'+x.toFixed(1)+'" y="'+labelY+'" text-anchor="middle" font-size="16" font-weight="700" fill="'+flair.color+'" style="font-family:monospace; text-transform:uppercase;">'+td.name+' &middot; L'+info.completed+'</text>';
+    });
+    svg += '</svg>';
+    return svg;
+  }
+
+  function renderTeamMetersBig(){
+    var slugs = Object.keys(state.teamData);
+    if(slugs.length === 0) return '';
+    var html = '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Team Power Meters</div>';
+    slugs.forEach(function(slug){
+      var td = state.teamData[slug];
+      var flair = teamFlair(td.name);
+      var meter = td.meter || 0;
+      html += '<div style="margin-bottom:10px;"><div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">' +
+        '<span style="color:'+flair.color+'; font-weight:700; text-transform:uppercase;">'+flair.emoji+' '+td.name+'</span><span>'+meter+'%</span></div>' +
+        '<div class="ex-bar-track" style="height:12px;"><div class="ex-bar-fill" style="width:'+meter+'%; background:'+flair.color+';"></div></div></div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderWhoGotHit(){
+    var slugs = Object.keys(state.teamData);
+    var anyHits = slugs.some(function(slug){ return !!state.teamData[slug].challenge; });
+    if(!anyHits) return '';
+    var html = '<div class="card" style="margin-bottom:16px; border-color:var(--danger);"><div class="setup-label" style="margin-bottom:10px; color:var(--danger);">\u26A0 Active Power-Up Hits</div>';
+    slugs.forEach(function(slug){
+      var ch = state.teamData[slug].challenge;
+      if(!ch) return;
+      var pu = powerupById(ch.powerupId || 'greenshell');
+      var toFlair = teamFlair(state.teamData[slug].name);
+      var fromFlair = ch.fromTeam ? teamFlair(ch.fromTeam) : null;
+      html += '<div class="lb-row" style="border-left:3px solid '+pu.color+';">' +
+        '<span class="lb-name">'+(fromFlair?fromFlair.emoji+' '+ch.fromTeam:'Someone')+' &rarr; '+toFlair.emoji+' '+state.teamData[slug].name+
+        '<span class="lb-sub">'+pu.label+': '+(ch.cat==='travel'?ch.exName:(ch.reps+'x '+ch.exName))+' ('+ch.doneBy.length+'/'+ch.roster.length+')</span></span></div>';
+    });
+    html += '</div>';
+    return html;
   }
 
   function pitStandings(){
@@ -668,15 +751,19 @@
       var extremeEx = findExtremeExercise();
       if(!extremeEx){ alert('No Extreme Challenge is set up for this game.'); return; }
       state.assignedExercise = { difficultyId: 'extreme', exId: extremeEx.id, exName: extremeEx.name, cat: extremeEx.cat, pts: extremeEx.pts, boostPct: extremeEx.boostPct||0, reps: 1, meterPct: 100 };
+      state.lastAssignedExId = extremeEx.id;
       render();
       return;
     }
     var tier = difficultyById(difficultyId);
     var pool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === difficultyId; });
     if(pool.length === 0){ alert('No exercises are set to '+tier.label+' difficulty for this game.'); return; }
+    var freshPool = pool.filter(function(e){ return e.id !== state.lastAssignedExId; });
+    if(freshPool.length > 0) pool = freshPool;
     var ex = pool[Math.floor(Math.random()*pool.length)];
     var reps = (ex.cat === 'travel') ? null : (ex.reps || 10);
     state.assignedExercise = { difficultyId: difficultyId, exId: ex.id, exName: ex.name, cat: ex.cat, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, meterPct: tier.meterPct };
+    state.lastAssignedExId = ex.id;
     render();
   }
 
@@ -718,20 +805,21 @@
     var existing = null;
     try{ var r2 = await window.storage.get(K('challenge:'+targetSlug), true); existing = (r2 && r2.value) ? JSON.parse(r2.value) : null; }catch(e){ existing = null; }
     if(existing) return false;
+    var powerup = POWERUP_TYPES[Math.floor(Math.random()*POWERUP_TYPES.length)];
     var extremeEx = findExtremeExercise();
     var exObj, reps;
-    if(extremeEx){ exObj = extremeEx; reps = 1; }
-    else {
+    if(powerup.id === 'lightning' && extremeEx){
+      exObj = extremeEx; reps = 1;
+    } else {
       var hardPool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === 'hard'; });
       var pool = hardPool.length ? hardPool : activeExercises().filter(function(e){ return e.id !== 'extreme'; });
       if(pool.length === 0) return false;
       exObj = pool[Math.floor(Math.random()*pool.length)];
-      reps = (exObj.cat === 'travel') ? 1 : (exObj.reps || 10);
+      reps = (exObj.cat === 'travel') ? 1 : (powerup.attackReps || exObj.reps || 10);
     }
     var roster = [];
     state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === targetSlug){ roster.push(e._key.replace(K('leaderboard:'),'')); } });
-    var powerupId = POWERUP_TYPES[Math.floor(Math.random()*POWERUP_TYPES.length)].id;
-    var ch = { powerupId: powerupId, exId: exObj.id, exName: exObj.name, cat: exObj.cat, pts: exObj.pts, boostPct: exObj.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [], fromTeam: state.team, toTeam: targetTeamName };
+    var ch = { powerupId: powerup.id, exId: exObj.id, exName: exObj.name, cat: exObj.cat, pts: exObj.pts, boostPct: exObj.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [], fromTeam: state.team, toTeam: targetTeamName };
     try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
     try{ await window.storage.set(K('meter:'+mySlug), '0', true); }catch(e){}
     state.toast = { msg: 'Power unleashed on '+targetTeamName+'!', until: Date.now()+5000 };
@@ -1049,6 +1137,7 @@
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
+      hapticTap();
       unlockAudio();
       state.playerName = v.slice(0,16).toUpperCase();
       state.mode = 'random';
@@ -1071,6 +1160,7 @@
 
   // ---------- Q dashboard ----------
   function renderQDashboard(){
+    app.style.maxWidth = '900px';
     var started = state.session && state.session.startTime;
     var left = timeLeftSec();
     var timeUp = started && left <= 0;
@@ -1090,6 +1180,9 @@
         var leadFlair = teamFlair(leaderNow.name);
         html += '<div class="trophy-banner">\uD83C\uDFC6 In The Lead: '+leadFlair.emoji+' '+leaderNow.name+'</div>';
       }
+      html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">The Track</div>' + renderTrackView() + '</div>';
+      html += renderWhoGotHit();
+      html += renderTeamMetersBig();
     }
 
     html += '<div class="card" style="margin-bottom:16px;">';
@@ -1231,6 +1324,7 @@
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
+      hapticTap();
       unlockAudio();
       if(state.mode === 'team'){
         var t = document.getElementById('teamInput').value.trim();
@@ -1404,13 +1498,12 @@
     var mySlug = state.team ? teamSlug(state.team) : null;
     var myTeamData = mySlug ? state.teamData[mySlug] : null;
 
-    var html = '<div class="topbar"><div><p class="eyebrow">Mario Kart Style &middot; '+(iAmRacer?'Racing Now':'Pit Crew')+'</p>' +
-      '<h1 class="title pixel" style="font-size:18px;">'+state.playerName+'</h1></div>';
+    // ---- compact header: just timer + team, nothing else ----
+    var html = '<div class="topbar"><div>';
+    if(state.team){ var hdrFlair = teamFlair(state.team); html += '<div class="team-tag" style="margin:0;">'+hdrFlair.emoji+' '+state.team+'</div>'; }
+    html += '</div>';
     if(started){ html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>'; }
     html += '</div>';
-    html += '<button class="btn-ghost" id="hubBtn">&larr; All Games</button>';
-    if(state.team){ var hdrFlair = teamFlair(state.team); html += '<div class="team-tag" style="margin:8px 0 0 0;">'+hdrFlair.emoji+' '+state.team+'</div>'; }
-    html += '<hr class="rule"/>';
 
     if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
     if(state.toast && Date.now() < state.toast.until){ html += '<div class="banner boost">'+state.toast.msg+'</div>'; }
@@ -1422,34 +1515,38 @@
       var curFlair = teamFlair(myTeamData.name); html += '<div class="banner boost">'+curFlair.emoji+' Current Racer: '+curName+'</div>';
     }
 
+    // ---- MAIN ACTION: the thing PAX actually need to see and press ----
     if(iAmRacer){
       html += '<div class="banner won">You\'re up! Run your lap, then tap below to hand off.</div>';
       html += '<button class="lap-btn" id="lapBtn" '+(timeUp?'disabled':'')+'>&#127937; LAP COMPLETE</button>';
-    } else {
-      html += '<div class="score-panel"><div class="score-label">Your Pit Crew Points</div><div class="score-value">'+fmtPts(score())+'</div></div>';
+    } else if(state.assignedExercise){
+      var a = state.assignedExercise;
+      var aTier = (a.difficultyId === 'extreme') ? {label:'\uD83D\uDD25 Hard Run', color:'#ff0044'} : difficultyById(a.difficultyId);
+      html += '<div class="shell-panel" style="border-color:'+aTier.color+';">';
+      html += '<div class="challenge-label" style="color:'+aTier.color+';">'+aTier.label+' Exercise</div>';
+      html += '<div class="challenge-exercise-huge">'+(a.cat==='travel' ? a.exName : (a.reps+' &times; '+a.exName))+'</div>';
+      html += (timeUp ? '' : '<button class="btn-green btn-huge" id="assignedDoneBtn">I\'M DONE</button>');
+      html += '</div>';
+    } else if(!timeUp){
+      html += '<div class="setup-label" style="margin:14px 0 10px 0;">Pick Your Difficulty</div>';
+      DIFFICULTY_TIERS.forEach(function(t){
+        html += '<div data-assign="'+t.id+'" class="difficulty-btn" style="border-color:'+t.color+'; color:'+t.color+';">'+t.label+'</div>';
+      });
+      if(findExtremeExercise()){
+        html += '<div data-assign="extreme" class="difficulty-btn" style="border-color:#ff0044; color:#ff0044;">\uD83D\uDD25 Hard Run</div>';
+      }
+    }
 
+    // ---- everything below here is secondary info, pushed down out of the way ----
+    html += '<hr class="rule"/>';
+    html += '<button class="btn-ghost" id="hubBtn">&larr; All Games</button>';
+
+    if(!iAmRacer){
+      html += '<div class="score-panel" style="margin-top:16px;"><div class="score-label">Your Pit Crew Points</div><div class="score-value">'+fmtPts(score())+'</div></div>';
       var myMeter = myTeamData ? (myTeamData.meter||0) : 0;
       html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:8px;">Team Power Meter</div>' +
         '<div class="ex-bar-track" style="height:14px;"><div class="ex-bar-fill" style="width:'+myMeter+'%; background:var(--danger);"></div></div>' +
         '<div class="mission-sub" style="margin-top:6px;">'+myMeter+'% &mdash; reach 100% to throw a power-up at another team</div></div>';
-
-      if(state.assignedExercise){
-        var a = state.assignedExercise;
-        var aTier = (a.difficultyId === 'extreme') ? {label:'\uD83D\uDD25 Hard Run', color:'#ff0044'} : difficultyById(a.difficultyId);
-        html += '<div class="shell-panel" style="border-color:'+aTier.color+';">';
-        html += '<div class="challenge-label" style="color:'+aTier.color+';">'+aTier.label+' Exercise</div>';
-        html += '<div class="challenge-exercise-huge">'+(a.cat==='travel' ? a.exName : (a.reps+' &times; '+a.exName))+'</div>';
-        html += (timeUp ? '' : '<button class="btn-green btn-huge" id="assignedDoneBtn">I\'M DONE</button>');
-        html += '</div>';
-      } else if(!timeUp){
-        html += '<div class="setup-label" style="margin:14px 0 10px 0;">Pick Your Difficulty</div>';
-        DIFFICULTY_TIERS.forEach(function(t){
-          html += '<div data-assign="'+t.id+'" class="difficulty-btn" style="border-color:'+t.color+'; color:'+t.color+';">'+t.label+'</div>';
-        });
-        if(findExtremeExercise()){
-          html += '<div data-assign="extreme" class="difficulty-btn" style="border-color:#ff0044; color:#ff0044;">\uD83D\uDD25 Hard Run</div>';
-        }
-      }
     }
 
     if(mySlug && state.teamData[mySlug] && state.teamData[mySlug].racer){
@@ -1460,13 +1557,13 @@
     app.innerHTML = html;
     wireCommonNav();
     var lapBtn = document.getElementById('lapBtn');
-    if(lapBtn){ lapBtn.onclick = completeLap; }
+    if(lapBtn){ lapBtn.onclick = function(){ hapticTap(); completeLap(); }; }
     var challengeDoneBtn = document.getElementById('challengeDoneBtn');
-    if(challengeDoneBtn){ challengeDoneBtn.onclick = confirmChallengeDone; }
+    if(challengeDoneBtn){ challengeDoneBtn.onclick = function(){ hapticTap(); confirmChallengeDone(); }; }
     var assignedDoneBtn = document.getElementById('assignedDoneBtn');
-    if(assignedDoneBtn){ assignedDoneBtn.onclick = completeAssignedExercise; }
+    if(assignedDoneBtn){ assignedDoneBtn.onclick = function(){ hapticTap(); completeAssignedExercise(); }; }
     app.querySelectorAll('[data-assign]').forEach(function(el){
-      el.onclick = function(){ assignExercise(this.getAttribute('data-assign')); };
+      el.onclick = function(){ hapticTap(); assignExercise(this.getAttribute('data-assign')); };
     });
   }
 
@@ -1498,7 +1595,13 @@
     renderGameClassic();
   }
 
+  function clearFocus(){
+    try{ if(document.activeElement && document.activeElement !== document.body && document.activeElement.blur){ document.activeElement.blur(); } }catch(e){}
+  }
+
   function render(){
+    clearFocus();
+    if(state.screen !== 'game' || !state.isQ){ app.style.maxWidth = '520px'; }
     if(state.loading){ app.innerHTML = '<div class="empty">Loading Rep Rumble Arcade...</div>'; return; }
     if(state.screen === 'hub'){ renderHub(); return; }
     if(state.screen === 'detail'){ renderDetail(); return; }
