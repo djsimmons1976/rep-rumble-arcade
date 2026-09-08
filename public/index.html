@@ -71,6 +71,9 @@
   .ex-setup-fields{display:flex; gap:8px; flex-wrap:wrap;}
   .ex-setup-fields > div{flex:1; min-width:70px;}
   .ex-setup-fields select{padding:8px; font-size:12px;}
+  .reps-stepper{display:flex; align-items:stretch; gap:6px;}
+  .reps-stepper-btn{flex:0 0 52px; font-size:22px; padding:10px 0; line-height:1;}
+  .reps-stepper-input{flex:1; min-width:70px; text-align:center; font-size:20px !important; font-weight:700; padding:10px !important;}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0;}
   @media (max-width:400px){ .grid{grid-template-columns:1fr;} }
   .ex-card{background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:12px; display:flex; flex-direction:column; gap:8px;}
@@ -881,16 +884,18 @@
         h += '<div class="ex-setup-card"><div class="ex-setup-head">' +
           '<input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
           '<span class="ex-setup-name">'+e.name+'</span></div>';
+        if(e.cat === 'strength'){
+          h += '<div style="margin-bottom:10px;"><span class="ex-mini-label" style="text-align:left;">Reps</span>' +
+            '<div class="reps-stepper">' +
+            '<button type="button" class="btn-ghost reps-stepper-btn" data-repsminus="'+e.id+'">&minus;</button>' +
+            '<input type="number" min="1" step="1" class="reps-stepper-input" data-qreps="'+e.id+'" value="'+(e.reps||10)+'" />' +
+            '<button type="button" class="btn-ghost reps-stepper-btn" data-repsplus="'+e.id+'">+</button></div></div>';
+        }
         h += '<div class="ex-setup-fields">';
         h += '<div><span class="ex-mini-label" style="text-align:left;">Difficulty</span><select data-qdiff="'+e.id+'">' +
           DIFFICULTY_TIERS.map(function(t){ return '<option value="'+t.id+'" '+(e.difficulty===t.id?'selected':'')+'>'+t.label+'</option>'; }).join('') +
           '</select></div>';
-        if(e.cat === 'strength'){
-          h += '<div><span class="ex-mini-label" style="text-align:left;">Reps</span><div style="display:flex; gap:4px;">' +
-            '<button type="button" class="btn-ghost btn-small" data-repsminus="'+e.id+'" style="padding:8px 10px;">&minus;</button>' +
-            '<input type="number" min="1" step="1" data-qreps="'+e.id+'" value="'+(e.reps||10)+'" style="text-align:center;" />' +
-            '<button type="button" class="btn-ghost btn-small" data-repsplus="'+e.id+'" style="padding:8px 10px;">+</button></div></div>';
-        } else {
+        if(e.cat !== 'strength'){
           h += '<div><span class="ex-mini-label" style="text-align:left;">Reps</span><input type="text" value="\u2014 (one-time)" disabled style="color:var(--muted);" /></div>';
         }
         h += '<div><span class="ex-mini-label" style="text-align:left;">Points</span><input type="number" step="0.25" data-qpts="'+e.id+'" value="'+e.pts+'" /></div>';
@@ -909,7 +914,7 @@
       '<div><span class="ex-mini-label" style="text-align:left;">Number of Teams</span><input id="qNumTeams" type="number" min="2" max="12" value="'+d.numTeams+'" /></div></div>';
     html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Strength Moves</span></div><div class="ex-pick-list">'+rows(strength)+'</div></div>';
     html += '<div class="setup-section"><div class="setup-head"><span class="setup-label">Travels</span></div><div class="ex-pick-list">'+rows(travel)+'</div></div>';
-    html += '<button class="btn-sky btn-small" id="qAddExBtn">+ Add Custom Exercise</button>';
+    html += '<button class="btn-sky" id="qAddExBtn" style="width:100%; padding:18px; font-size:15px; margin:8px 0 16px 0;">+ ADD CUSTOM EXERCISE</button>';
 
     html += '<div class="setup-section" style="margin-top:16px;">';
     html += '<div class="shell-panel" style="border-color:var(--danger);">';
