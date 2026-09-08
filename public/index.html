@@ -258,16 +258,16 @@
   var MASTER_EXERCISES = [
     {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:10},
     {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
-    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:0,  difficulty:'hard',   reps:10},
+    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:30, difficulty:'hard',   reps:10},
     {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
-    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
-    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
-    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
-    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'medium', reps:12},
-    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:15, difficulty:'hard',   reps:null},
-    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:15, difficulty:'easy',   reps:null},
-    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:10, difficulty:'medium', reps:null},
-    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:10, difficulty:'medium', reps:null}
+    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
+    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
+    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
+    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
+    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:30, difficulty:'hard',   reps:null},
+    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:0,  difficulty:'easy',   reps:null},
+    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:15, difficulty:'medium', reps:null},
+    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:15, difficulty:'medium', reps:null}
   ];
   var MISSION_BONUS = 75;
   var DEFAULT_MINUTES = 20;
@@ -939,6 +939,7 @@
     document.getElementById('qNumTeams').onchange = function(){ d.numTeams = parseInt(this.value,10)||2; };
     app.querySelectorAll('[data-qpick]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpick')) e.included = el.checked; }); }; });
     var REP_SUGGESTIONS = { easy: 8, medium: 15, hard: 22 };
+    var BOOST_SUGGESTIONS = { easy: 0, medium: 15, hard: 30 };
     app.querySelectorAll('[data-qdiff]').forEach(function(el){
       el.onchange = function(){
         var id = el.getAttribute('data-qdiff');
@@ -946,6 +947,7 @@
           if(e.id === id){
             e.difficulty = el.value;
             if(e.cat === 'strength' && REP_SUGGESTIONS[el.value]){ e.reps = REP_SUGGESTIONS[el.value]; }
+            if(BOOST_SUGGESTIONS[el.value] !== undefined){ e.boostPct = BOOST_SUGGESTIONS[el.value]; }
           }
         });
         renderQSetup();
