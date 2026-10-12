@@ -102,6 +102,15 @@ git push
 
 Azure will automatically rebuild and redeploy within a minute or two.
 
+## Modifying a run (injuries) when teams are picked
+
+When players join, they're asked "Need to modify your run?" (they can change their answer on the
+waiting screen until teams are picked). Anyone who says yes stays on pit crew and is skipped when
+it's their turn to run. When the Q shuffles the teams, those players are **spread across the teams
+as evenly as possible** - never piled onto one team, and never doubled up on a team while there are
+enough teams to go around - while team sizes stay within one of each other. A team's first runner is
+never someone who is sitting out. The Q's lobby marks them with a bandage and shows a count.
+
 ## Big-screen dashboard (the Q, computer only)
 
 The Q screen is for a computer and a projector - phones and tablets are blocked from opening it

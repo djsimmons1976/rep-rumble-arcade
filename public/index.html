@@ -666,27 +666,49 @@
     }
   }
 
+  // Splits players into teams. Everyone who needs to modify their run is spread as evenly as possible
+  // across the teams (never piled onto one team), and team sizes stay within one of each other.
+  function balancedTeamSplit(entries, numTeams){
+    function shuffle(list){
+      var a = list.slice();
+      for(var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+      return a;
+    }
+    var mods = shuffle(entries.filter(function(e){ return e.skip; }));
+    var rest = shuffle(entries.filter(function(e){ return !e.skip; }));
+    var seq = mods.concat(rest);
+    var order = [];
+    for(var n = 0; n < numTeams; n++){ order.push(n); }
+    order = shuffle(order);             // so the "extra" player or modifier doesn't always land on team 1
+    var teams = [];
+    for(var k = 0; k < numTeams; k++){ teams.push([]); }
+    seq.forEach(function(e, idx){ teams[order[idx % numTeams]].push(e); });
+    return teams.map(shuffle);          // random run order inside each team
+  }
+
   async function performShuffle(numTeams){
     await fetchLeaderboard();
     var pool = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
     if(pool.length < numTeams){ alert('Need at least '+numTeams+' PAX joined before shuffling.'); return; }
-    var arr = pool.slice();
-    for(var i=arr.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var tmp=arr[i]; arr[i]=arr[j]; arr[j]=tmp; }
+    var entries = pool.map(function(e){ return { pid: e._key.replace(K('leaderboard:'),''), skip: !!e.skipRuns }; });
+    var split = balancedTeamSplit(entries, numTeams);
     var assignments = {};
     var groups = {};
-    arr.forEach(function(entry, idx){
-      var pid = entry._key.replace(K('leaderboard:'),'');
-      var teamName = teamNameForIndex(idx % numTeams);
-      assignments[pid] = teamName;
+    var startIdx = {};
+    split.forEach(function(team, ti){
+      var teamName = teamNameForIndex(ti);
       var slug = teamSlug(teamName);
-      if(!groups[slug]) groups[slug] = [];
-      groups[slug].push(pid);
+      groups[slug] = team.map(function(e){ return e.pid; });
+      var first = 0;
+      for(var k = 0; k < team.length; k++){ if(!team[k].skip){ first = k; break; } }   // don't start with someone who's sitting out
+      startIdx[slug] = first;
+      team.forEach(function(e){ assignments[e.pid] = teamName; });
     });
     var teamsObj = { assignments: assignments, numTeams: numTeams, shuffledAt: Date.now() };
     try{ await window.storage.set(K('teams'), JSON.stringify(teamsObj), true); }catch(e){ console.error(e); return; }
     state.teamsInfo = teamsObj;
     for(var slugKey in groups){
-      var racerState = { order: groups[slugKey], currentIndex: 0 };
+      var racerState = { order: groups[slugKey], currentIndex: startIdx[slugKey] || 0 };
       try{ await window.storage.set(K('racer:'+slugKey), JSON.stringify(racerState), true); }catch(e){ console.error(e); }
     }
     await refreshTeamsData();
@@ -1552,12 +1574,27 @@
     var html = '<p class="eyebrow">Code: '+state.code+'</p><h1 class="title pixel" style="font-size:20px;">Join The<br/>Game</h1><hr class="rule"/>';
     html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Your name</div>';
     html += '<input id="nameInput" type="text" maxlength="16" placeholder="e.g. HERKY" /><div style="height:16px;"></div>';
+    html += '<div class="setup-label" style="margin-bottom:8px;">Need to modify your run? (injury, etc.)</div>' +
+      '<div class="radio-group">' +
+      '<div class="radio-opt'+(state.skipRuns?'':' active')+'" data-mod="no">No &mdash; I can run</div>' +
+      '<div class="radio-opt'+(state.skipRuns?' active':'')+'" data-mod="yes">Yes &mdash; modify my run</div></div>' +
+      '<div class="mission-sub" id="modHelp" style="'+(state.skipRuns?'':'display:none;')+'">\uD83E\uDE79 You\'ll stay on pit crew and be skipped when it\'s your turn to run. Teams are balanced so people who need this are spread across different teams.</div>' +
+      '<div style="height:12px;"></div>';
     html += '<div class="mission-sub">The Q will randomly assign your team and your team\'s run order \u2014 you\'ll rotate through being the racer, one at a time.</div><div style="height:12px;"></div>';
     if(isIOS() && !isStandaloneApp()){
       html += '<div class="mission-sub" style="color:var(--gold);">\uD83D\uDD14 Want alerts on your watch? Before joining, tap Share \u2192 <b>Add to Home Screen</b>, then open Rep Rumble from your Home Screen.</div><div style="height:12px;"></div>';
     }
     html += '<button class="btn-primary" id="joinBtn" style="width:100%;">Join</button></div>';
     app.innerHTML = html;
+    app.querySelectorAll('[data-mod]').forEach(function(el){
+      el.onclick = function(){
+        hapticTap();
+        state.skipRuns = (this.getAttribute('data-mod') === 'yes');
+        app.querySelectorAll('[data-mod]').forEach(function(o){ o.classList.toggle('active', o === el); });
+        var help = document.getElementById('modHelp');
+        if(help){ help.style.display = state.skipRuns ? '' : 'none'; }
+      };
+    });
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
@@ -1583,7 +1620,14 @@
     if(state.team){ html += '<div class="team-tag">&#9650; '+state.team+'</div>'; }
     html += pushStatusLine();
     html += '</div>';
+    html += '<div class="card" style="margin-top:16px;">' +
+      '<button class="btn-ghost" id="sitOutBtn" style="width:100%; '+(state.skipRuns?'border-color:var(--gold); color:var(--gold);':'')+'">\uD83E\uDE79 Modify my run: '+(state.skipRuns?'YES':'NO')+'</button>' +
+      '<div class="mission-sub" style="margin:8px 0 0 0;">'+(state.skipRuns
+        ? 'You\'ll stay on pit crew and be skipped when it\'s your turn to run. Tap again to change your mind.'
+        : 'Injured or need to modify your run? Tap here before teams are picked &mdash; people who do are spread across different teams.')+'</div></div>';
     app.innerHTML = html;
+    var waitSit = document.getElementById('sitOutBtn');
+    if(waitSit){ waitSit.onclick = function(){ hapticTap(); toggleSitOut(); }; }
   }
 
   // ---------- Q dashboard ----------
@@ -1760,9 +1804,13 @@
       if(joined.length === 0){ html += '<span class="empty">No one has joined yet.</span>'; }
       joined.forEach(function(p){
         var pf = p.team ? teamFlair(p.team) : null;
-        html += '<span class="lobby-chip">' + (pf ? pf.emoji + ' ' : '') + p.name + (p.team ? ' &middot; ' + p.team : '') + '</span>';
+        html += '<span class="lobby-chip">' + (p.skipRuns ? '\uD83E\uDE79 ' : '') + (pf ? pf.emoji + ' ' : '') + p.name + (p.team ? ' &middot; ' + p.team : '') + '</span>';
       });
       html += '</div>';
+      var modCount = joined.filter(function(p){ return p.skipRuns; }).length;
+      if(modCount > 0 && !state.teamsInfo){
+        html += '<div class="mission-sub" style="margin-top:6px;">\uD83E\uDE79 ' + modCount + ' player' + (modCount === 1 ? ' needs' : 's need') + ' to modify their run. The shuffle spreads them across different teams.</div>';
+      }
       if(!state.teamsInfo){
         html += '<div style="height:10px;"></div><button class="btn-violet" id="shuffleBtn" style="width:100%;">Shuffle Into ' + state.session.numTeams + ' Teams &amp; Set Run Order</button>';
       } else {
