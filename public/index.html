@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08060c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rep Rumble">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <title>Rep Rumble Arcade</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap');
@@ -256,18 +263,18 @@
   };
 
   var MASTER_EXERCISES = [
-    {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:10},
-    {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
-    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:30, difficulty:'hard',   reps:10},
-    {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0,  difficulty:'easy',   reps:15},
-    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
-    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
-    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
-    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:15, difficulty:'medium', reps:12},
-    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:30, difficulty:'hard',   reps:null},
-    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:0,  difficulty:'easy',   reps:null},
-    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:15, difficulty:'medium', reps:null},
-    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:15, difficulty:'medium', reps:null}
+    {id:'pushup',       name:'Merkin (Push-Up)', pts:1,    goal:5, cat:'strength', boostPct:0,  reps:10},
+    {id:'airsquat',     name:'Air Squat',        pts:0.5,  goal:5, cat:'strength', boostPct:0,  reps:15},
+    {id:'burpee',       name:'Burpee',           pts:3,    goal:5, cat:'strength', boostPct:30, reps:10},
+    {id:'situp',        name:'Big Boy Sit-Up',   pts:0.75, goal:5, cat:'strength', boostPct:0,  reps:15},
+    {id:'lunge',        name:'Lunge',            pts:0.75, goal:5, cat:'strength', boostPct:15, reps:12},
+    {id:'blockcurl',    name:'Block Curl',       pts:1,    goal:5, cat:'strength', boostPct:15, reps:12},
+    {id:'blockpress',   name:'Block Press',      pts:1.5,  goal:5, cat:'strength', boostPct:15, reps:12},
+    {id:'blockswing',   name:'Block Swing',      pts:1.5,  goal:5, cat:'strength', boostPct:15, reps:12},
+    {id:'run',          name:'Run',              pts:50,   goal:1, cat:'travel',   boostPct:30, reps:null},
+    {id:'farmercarry',  name:'Farmer Carry',     pts:35,   goal:1, cat:'travel',   boostPct:0,  reps:null},
+    {id:'bearcrawl',    name:'Bear Crawl',       pts:20,   goal:1, cat:'travel',   boostPct:15, reps:null},
+    {id:'shuttle',      name:'Sprint Shuttle',   pts:25,   goal:1, cat:'travel',   boostPct:15, reps:null}
   ];
   var MISSION_BONUS = 75;
   var DEFAULT_MINUTES = 20;
@@ -307,7 +314,7 @@
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
     isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
-    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null
+    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null, skipRuns:false, lastShortcutSeen:null, pushStatus:null
   };
 
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
@@ -321,7 +328,7 @@
   var audioCtx = null;
   var primedAudioEl = null;
   var SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-  function unlockAudio(){
+  function unlockAudio(askNotify){
     if(!audioCtx){
       try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; }
     }
@@ -335,11 +342,75 @@
       }catch(e){ primedAudioEl = null; }
     }
     try{
-      if('Notification' in window && Notification.permission === 'default'){
-        Notification.requestPermission();
+      if(askNotify && 'Notification' in window){
+        notifPermPromise = (Notification.permission === 'default') ? Notification.requestPermission() : Promise.resolve(Notification.permission);
       }
     }catch(e){}
   }
+  // After a page reload the browser forgets that sound was allowed; the first tap anywhere re-allows it.
+  function armAudioUnlock(){
+    var handler = function(){
+      unlockAudio();
+      document.removeEventListener('touchend', handler, true);
+      document.removeEventListener('click', handler, true);
+    };
+    document.addEventListener('touchend', handler, true);
+    document.addEventListener('click', handler, true);
+  }
+
+  // ---- lock-screen / smartwatch alerts via Web Push ----
+  var notifPermPromise = null;
+  function urlBase64ToUint8Array(b64){
+    var padding = '='.repeat((4 - b64.length % 4) % 4);
+    var base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(base64);
+    var out = new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++){ out[i] = raw.charCodeAt(i); }
+    return out;
+  }
+  function isIOS(){
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  function isStandaloneApp(){
+    return (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
+  async function setupPush(){
+    try{
+      if(!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)){ state.pushStatus = 'unsupported'; return; }
+      var perm = notifPermPromise ? await notifPermPromise : Notification.permission;
+      if(perm !== 'granted'){ state.pushStatus = (perm === 'denied') ? 'denied' : 'off'; return; }
+      var reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
+      var keyRes = await fetch('/api/push/key');
+      var keyData = await keyRes.json();
+      var existing = await reg.pushManager.getSubscription();
+      if(existing){ try{ await existing.unsubscribe(); }catch(e){} }
+      var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(keyData.key) });
+      var res = await fetch('/api/push/subscribe', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ deviceId: state.devicePlayerId, subscription: sub.toJSON() }) });
+      state.pushStatus = res.ok ? 'ready' : 'error';
+    }catch(e){
+      console.error('push setup failed', e);
+      state.pushStatus = 'error';
+    }
+    if(state.screen === 'game' && state.playerName){ render(); }
+  }
+  function pushStatusLine(){
+    if(state.pushStatus === 'ready'){
+      return '<div class="mission-sub" style="color:var(--mint);">\uD83D\uDD14 Lock-screen &amp; watch alerts are ON</div>';
+    }
+    if(state.pushStatus === 'denied'){
+      return '<div class="mission-sub">\uD83D\uDD15 Notifications are blocked for this site. Turn them on in your phone/browser settings to get watch alerts.</div>';
+    }
+    if(isIOS() && !isStandaloneApp()){
+      return '<div class="mission-sub">\uD83D\uDD15 For lock-screen &amp; watch alerts on iPhone: tap Share \u2192 <b>Add to Home Screen</b>, then open the app from your Home Screen.</div>';
+    }
+    if(state.pushStatus === 'unsupported' || state.pushStatus === 'error'){
+      return '<div class="mission-sub">\uD83D\uDD15 Lock-screen alerts aren\'t available on this browser. Keep the screen on for sound &amp; vibration.</div>';
+    }
+    return '';
+  }
+
   function playAlertTone(){
     if(audioCtx && audioCtx.state === 'suspended'){ try{ audioCtx.resume(); }catch(e){} }
     if(!audioCtx) return;
@@ -362,11 +433,6 @@
   function notifyPowerupHit(msg){
     try{ if(navigator.vibrate){ navigator.vibrate([250,120,250,120,400]); } }catch(e){}
     playAlertTone();
-    try{
-      if('Notification' in window && Notification.permission === 'granted'){
-        new Notification('Rep Rumble Arcade', { body: msg || 'Your team got hit with a power-up!' });
-      }
-    }catch(e){}
   }
   function hapticTap(){
     try{ if(navigator.vibrate){ navigator.vibrate(20); } }catch(e){}
@@ -384,11 +450,11 @@
   }
 
   var POWERUP_TYPES = [
-    { id:'redshell',   label:'Red Shell',      color:'#ff3b3b', attackReps:15 },
-    { id:'greenshell', label:'Green Shell',    color:'#3fbf5f', attackReps:10 },
-    { id:'lightning',  label:'Lightning Bolt', color:'#ffd93b', attackReps:null },
-    { id:'banana',     label:'Banana Peel',    color:'#f4c430', attackReps:8  },
-    { id:'star',       label:'Star Power',     color:'#9b5cff', attackReps:20 }
+    { id:'banana',     label:'Banana',      color:'#f4c430', attackReps:2,    desc:'Hits the team right behind you' },
+    { id:'greenshell', label:'Green Shell', color:'#3fbf5f', attackReps:5,    desc:'Hits the team right ahead of you' },
+    { id:'redshell',   label:'Red Shell',   color:'#ff3b3b', attackReps:7,    desc:'Hits the team right ahead of you' },
+    { id:'blueshell',  label:'Blue Shell',  color:'#3ea6ff', attackReps:null, desc:'Sends the 1st place runner on a detour' },
+    { id:'rocket',     label:'Rocket',      color:'#e8e8f0', attackReps:null, desc:'Your runner takes a half-lap shortcut' }
   ];
   var DIFFICULTY_TIERS = [
     { id:'easy',   label:'Easy',   color:'var(--mint)',   meterPct:20 },
@@ -413,7 +479,7 @@
     var p = powerupById(id);
     var c = p.color;
     var shape = '';
-    if(id === 'redshell' || id === 'greenshell'){
+    if(id === 'redshell' || id === 'greenshell' || id === 'blueshell'){
       shape = '<ellipse cx="32" cy="34" rx="22" ry="18" fill="'+c+'"/>' +
         '<path d="M10 30 Q32 8 54 30" fill="none" stroke="#0a0a0f" stroke-width="4" opacity="0.35"/>' +
         '<ellipse cx="32" cy="18" rx="10" ry="7" fill="#fff"/>' +
@@ -426,6 +492,12 @@
       shape = '<path d="M18 50 C10 40 12 22 26 12 C30 10 34 12 33 16 C24 24 20 38 26 46 C30 51 24 54 18 50 Z" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>';
     } else if(id === 'star'){
       shape = '<polygon points="32,6 39,24 58,24 43,36 49,54 32,43 15,54 21,36 6,24 25,24" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>';
+    } else if(id === 'rocket'){
+      shape = '<path d="M32 4 C42 14 44 30 40 46 L24 46 C20 30 22 14 32 4 Z" fill="'+c+'" stroke="#0a0a0f" stroke-width="2"/>' +
+        '<circle cx="32" cy="24" r="5" fill="#3ea6ff" stroke="#0a0a0f" stroke-width="2"/>' +
+        '<path d="M24 38 L12 50 L24 46 Z" fill="#ff3b3b" stroke="#0a0a0f" stroke-width="2"/>' +
+        '<path d="M40 38 L52 50 L40 46 Z" fill="#ff3b3b" stroke="#0a0a0f" stroke-width="2"/>' +
+        '<path d="M26 48 L32 62 L38 48 Z" fill="#ffa63c"/>';
     }
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 64 64">'+shape+'</svg>';
   }
@@ -475,7 +547,7 @@
     if(!state.devicePlayerId) return;
     var entry = {
       name: state.playerName, score: score(), missionDone: state.missionAwarded,
-      mode: state.mode, team: state.team || null,
+      mode: state.mode, team: state.team || null, skipRuns: !!state.skipRuns,
       updatedAt: Date.now()
     };
     try{ await window.storage.set(K('leaderboard:' + state.devicePlayerId), JSON.stringify(entry), true); }
@@ -581,6 +653,7 @@
       var tag = '';
       if(i === idx){ tag = ' <span style="color:var(--green);">&#9654; RACING</span>'; }
       else if(i === (idx+1) % rs.order.length){ tag = ' <span style="color:var(--gold);">UP NEXT</span>'; }
+      if(isSittingOut(pid)){ tag += ' <span style="color:var(--muted);">SITTING OUT</span>'; }
       html += '<div class="lb-row'+(pid===state.devicePlayerId?' me':'')+'" style="border-left:3px solid '+flair.color+';">' +
         '<span class="lb-rank">'+(i+1)+'</span>' + racerAvatarSVG(flair.color, 24) +
         '<span class="lb-name" style="margin-left:8px;">'+label+tag+'</span></div>';
@@ -602,7 +675,9 @@
       try{ var r3 = await window.storage.get(K('racer:'+slug), true); racer = (r3 && r3.value) ? JSON.parse(r3.value) : null; }catch(e){ racer = null; }
       try{ var r4 = await window.storage.get(K('meter:'+slug), true); meter = (r4 && r4.value) ? parseFloat(r4.value) : 0; }catch(e){ meter = 0; }
       try{ var r5 = await window.storage.get(K('challenge:'+slug), true); challenge = (r5 && r5.value) ? JSON.parse(r5.value) : null; }catch(e){ challenge = null; }
-      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer, meter: meter, challenge: challenge };
+      var shortcut = null;
+      try{ var r6 = await window.storage.get(K('shortcut:'+slug), true); shortcut = (r6 && r6.value) ? JSON.parse(r6.value) : null; }catch(e){ shortcut = null; }
+      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer, meter: meter, challenge: challenge, shortcut: shortcut };
     }
     state.teamData = data;
   }
@@ -685,18 +760,27 @@
 
   function renderWhoGotHit(){
     var slugs = Object.keys(state.teamData);
-    var anyHits = slugs.some(function(slug){ return !!state.teamData[slug].challenge; });
+    var anyHits = slugs.some(function(slug){ var t = state.teamData[slug]; return !!t.challenge || !!t.shortcut; });
     if(!anyHits) return '';
-    var html = '<div class="card" style="margin-bottom:16px; border-color:var(--danger);"><div class="setup-label" style="margin-bottom:10px; color:var(--danger);">\u26A0 Active Power-Up Hits</div>';
+    var html = '<div class="card" style="margin-bottom:16px; border-color:var(--danger);"><div class="setup-label" style="margin-bottom:10px; color:var(--danger);">\u26A0 Active Power-Ups</div>';
     slugs.forEach(function(slug){
-      var ch = state.teamData[slug].challenge;
-      if(!ch) return;
-      var pu = powerupById(ch.powerupId || 'greenshell');
-      var toFlair = teamFlair(state.teamData[slug].name);
-      var fromFlair = ch.fromTeam ? teamFlair(ch.fromTeam) : null;
-      html += '<div class="lb-row" style="border-left:3px solid '+pu.color+';">' +
-        '<span class="lb-name">'+(fromFlair?fromFlair.emoji+' '+ch.fromTeam:'Someone')+' &rarr; '+toFlair.emoji+' '+state.teamData[slug].name+
-        '<span class="lb-sub">'+pu.label+': '+(ch.cat==='travel'?ch.exName:(ch.reps+'x '+ch.exName))+' ('+ch.doneBy.length+'/'+ch.roster.length+')</span></span></div>';
+      var td = state.teamData[slug];
+      var toFlair = teamFlair(td.name);
+      var ch = td.challenge;
+      if(ch){
+        var pu = powerupById(ch.powerupId || 'greenshell');
+        var fromFlair = ch.fromTeam ? teamFlair(ch.fromTeam) : null;
+        var detail = (ch.kind === 'detour')
+          ? (pu.label + ': ' + (ch.runnerName || 'runner') + ' &rarr; ' + (ch.destination || 'the detour'))
+          : (pu.label + ': ' + (ch.cat==='travel' ? ch.exName : (ch.reps+'x '+ch.exName)) + ' (' + ch.doneBy.length + '/' + ch.roster.length + ')');
+        html += '<div class="lb-row" style="border-left:3px solid '+pu.color+';">' +
+          '<span class="lb-name">'+(fromFlair?fromFlair.emoji+' '+ch.fromTeam:'Someone')+' &rarr; '+toFlair.emoji+' '+td.name+
+          '<span class="lb-sub">'+detail+'</span></span></div>';
+      }
+      if(td.shortcut){
+        html += '<div class="lb-row" style="border-left:3px solid #e8e8f0;"><span class="lb-name">'+toFlair.emoji+' '+td.name+
+          '<span class="lb-sub">\uD83D\uDE80 Rocket: half-lap shortcut for their runner</span></span></div>';
+      }
     });
     html += '</div>';
     return html;
@@ -720,6 +804,22 @@
     return arr;
   }
 
+  function isSittingOut(pid){
+    var out = false;
+    state.leaderboard.forEach(function(e){ if(e._key === K('leaderboard:'+pid) && e.skipRuns) out = true; });
+    return out;
+  }
+
+  // Next runner in the fixed order, passing over anyone who is sitting out runs (injuries).
+  function nextRunnerIndex(rs){
+    var n = rs.order.length;
+    for(var step = 1; step <= n; step++){
+      var idx = (rs.currentIndex + step) % n;
+      if(!isSittingOut(rs.order[idx])) return idx;
+    }
+    return (rs.currentIndex + 1) % n;
+  }
+
   async function completeLap(){
     if(!state.team) return;
     var slug = teamSlug(state.team);
@@ -730,9 +830,36 @@
     var rs = null;
     try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
     if(rs && rs.order && rs.order.length){
-      rs.currentIndex = (rs.currentIndex + 1) % rs.order.length;
+      rs.currentIndex = nextRunnerIndex(rs);
       try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
     }
+    try{ await window.storage.delete(K('shortcut:'+slug), true); }catch(e){}
+    await refreshTeamsData();
+    render();
+  }
+
+  // Hand the baton to the next runner WITHOUT logging a lap.
+  async function skipTurn(){
+    if(!state.team) return;
+    var slug = teamSlug(state.team);
+    var rs = null;
+    try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
+    if(!rs || !rs.order || !rs.order.length) return;
+    if(rs.order[rs.currentIndex % rs.order.length] !== state.devicePlayerId){ await refreshTeamsData(); render(); return; }
+    var next = nextRunnerIndex(rs);
+    if(next === rs.currentIndex){ alert('Nobody else on your team is available to run right now.'); return; }
+    rs.currentIndex = next;
+    try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
+    state.toast = { msg:'Turn skipped \u2014 baton passed on.', until: Date.now()+4000 };
+    await refreshTeamsData();
+    render();
+  }
+
+  async function toggleSitOut(){
+    state.skipRuns = !state.skipRuns;
+    await pushLeaderboardEntry();
+    await fetchLeaderboard();
+    if(state.skipRuns && isActiveRacer()){ await skipTurn(); return; }
     await refreshTeamsData();
     render();
   }
@@ -746,6 +873,12 @@
     return count > 0 ? count : METER_REFERENCE_TEAM_SIZE;
   }
 
+  var DIFFICULTY_REP_MULT = { easy: 1, medium: 1.5, hard: 2 };
+  function scaledRepsFor(baseReps, difficultyId){
+    var mult = DIFFICULTY_REP_MULT[difficultyId] || 1;
+    return Math.max(1, Math.round((baseReps || 10) * mult));
+  }
+
   function assignExercise(difficultyId){
     if(difficultyId === 'extreme'){
       var extremeEx = findExtremeExercise();
@@ -756,15 +889,20 @@
       return;
     }
     var tier = difficultyById(difficultyId);
-    var pool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === difficultyId; });
-    if(pool.length === 0){ alert('No exercises are set to '+tier.label+' difficulty for this game.'); return; }
+    var pool = activeExercises().filter(function(e){ return e.id !== 'extreme'; });
+    if(pool.length === 0){ alert('No exercises are set up for this game.'); return; }
     var freshPool = pool.filter(function(e){ return e.id !== state.lastAssignedExId; });
     if(freshPool.length > 0) pool = freshPool;
     var ex = pool[Math.floor(Math.random()*pool.length)];
-    var reps = (ex.cat === 'travel') ? null : (ex.reps || 10);
+    var reps = (ex.cat === 'travel') ? null : scaledRepsFor(ex.reps, difficultyId);
     state.assignedExercise = { difficultyId: difficultyId, exId: ex.id, exName: ex.name, cat: ex.cat, pts: ex.pts, boostPct: ex.boostPct||0, reps: reps, meterPct: tier.meterPct };
     state.lastAssignedExId = ex.id;
     render();
+  }
+
+  var MIN_THROW_INTERVAL_MS = 90000;
+  async function getLastThrowTime(slug){
+    try{ var r = await window.storage.get(K('lastthrow:'+slug), true); return (r && r.value) ? parseFloat(r.value) : 0; }catch(e){ return 0; }
   }
 
   async function completeAssignedExercise(){
@@ -786,7 +924,11 @@
       try{ await window.storage.set(K('meter:'+slug), String(meter), true); }catch(e){ console.error(e); }
       if(meter >= 100){
         await refreshTeamsData();
-        await autoThrowPowerup();
+        var lastThrow = await getLastThrowTime(slug);
+        if(Date.now() - lastThrow >= MIN_THROW_INTERVAL_MS){
+          await autoThrowPowerup();
+        }
+        // if still on cooldown, the charge stays banked at 100% and the poll loop will fire it once ready
       }
     }
     state.assignedExercise = null;
@@ -795,34 +937,117 @@
     render();
   }
 
+  async function tryFireBankedPowerup(){
+    if(!state.team) return;
+    var slug = teamSlug(state.team);
+    var td = state.teamData[slug];
+    if(!td || (td.meter||0) < 100) return;
+    var lastThrow = await getLastThrowTime(slug);
+    if(Date.now() - lastThrow < MIN_THROW_INTERVAL_MS) return;
+    await autoThrowPowerup();
+  }
+
+  function teamMemberIds(slug){
+    var ids = [];
+    state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === slug){ ids.push(e._key.replace(K('leaderboard:'),'')); } });
+    return ids;
+  }
+
+  function sendPush(deviceIds, title, body, tag){
+    if(!deviceIds || deviceIds.length === 0) return;
+    try{
+      fetch('/api/push/send', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ deviceIds: deviceIds, title: title, body: body, tag: tag || 'rr' }) }).catch(function(){});
+    }catch(e){}
+  }
+
+  // Picks a power-up that makes sense for where the team currently sits, then fires it.
+  var throwInFlight = false;
   async function autoThrowPowerup(){
+    if(throwInFlight) return false;
+    throwInFlight = true;
+    try{ return await autoThrowPowerupInner(); }
+    finally{ throwInFlight = false; }
+  }
+
+  async function autoThrowPowerupInner(){
     if(!state.team) return false;
     var mySlug = teamSlug(state.team);
-    var otherSlugs = Object.keys(state.teamData).filter(function(s){ return s !== mySlug; });
-    if(otherSlugs.length === 0) return false;
-    var targetSlug = otherSlugs[Math.floor(Math.random()*otherSlugs.length)];
-    var targetTeamName = state.teamData[targetSlug].name;
-    var existing = null;
-    try{ var r2 = await window.storage.get(K('challenge:'+targetSlug), true); existing = (r2 && r2.value) ? JSON.parse(r2.value) : null; }catch(e){ existing = null; }
-    if(existing) return false;
-    var powerup = POWERUP_TYPES[Math.floor(Math.random()*POWERUP_TYPES.length)];
-    var extremeEx = findExtremeExercise();
-    var exObj, reps;
-    if(powerup.id === 'lightning' && extremeEx){
-      exObj = extremeEx; reps = 1;
-    } else {
-      var hardPool = activeExercises().filter(function(e){ return e.id !== 'extreme' && e.difficulty === 'hard'; });
-      var pool = hardPool.length ? hardPool : activeExercises().filter(function(e){ return e.id !== 'extreme'; });
-      if(pool.length === 0) return false;
-      exObj = pool[Math.floor(Math.random()*pool.length)];
-      reps = (exObj.cat === 'travel') ? 1 : (powerup.attackReps || exObj.reps || 10);
+    var lastThrow = await getLastThrowTime(mySlug);
+    if(Date.now() - lastThrow < MIN_THROW_INTERVAL_MS) return false;
+
+    var standings = lapStandings();
+    var myIdx = -1;
+    standings.forEach(function(t, i){ if(teamSlug(t.name) === mySlug) myIdx = i; });
+    if(myIdx < 0) return false;
+    var aheadSlug  = myIdx > 0 ? teamSlug(standings[myIdx-1].name) : null;
+    var behindSlug = myIdx < standings.length - 1 ? teamSlug(standings[myIdx+1].name) : null;
+    var leaderSlug = myIdx > 0 ? teamSlug(standings[0].name) : null;
+
+    function freeTarget(slug){ return slug && state.teamData[slug] && !state.teamData[slug].challenge; }
+    var options = [];
+    if(freeTarget(behindSlug)){ options.push({ type:'banana', target: behindSlug }); }
+    if(freeTarget(aheadSlug)){ options.push({ type:'greenshell', target: aheadSlug }); options.push({ type:'redshell', target: aheadSlug }); }
+    if(freeTarget(leaderSlug)){
+      var lt = state.teamData[leaderSlug];
+      if(lt.racer && lt.racer.order && lt.racer.order.length){ options.push({ type:'blueshell', target: leaderSlug }); }
     }
-    var roster = [];
-    state.leaderboard.forEach(function(e){ if(e.team && teamSlug(e.team) === targetSlug){ roster.push(e._key.replace(K('leaderboard:'),'')); } });
-    var ch = { powerupId: powerup.id, exId: exObj.id, exName: exObj.name, cat: exObj.cat, pts: exObj.pts, boostPct: exObj.boostPct||0, reps: reps, issuedAt: Date.now(), roster: roster, doneBy: [], fromTeam: state.team, toTeam: targetTeamName };
-    try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
+    var myTd = state.teamData[mySlug];
+    // The team in 1st place only ever gets Bananas; Rockets are a catch-up item for everyone else.
+    if(myIdx > 0 && !(myTd && myTd.shortcut)){ options.push({ type:'rocket', target: mySlug }); }
+    if(options.length === 0) return false;
+
+    var pick = options[Math.floor(Math.random()*options.length)];
+    var powerup = powerupById(pick.type);
+
+    // Claim the cooldown slot immediately (re-checking first) so a teammate's phone can't fire at the same moment.
+    var claimCheck = await getLastThrowTime(mySlug);
+    if(Date.now() - claimCheck < MIN_THROW_INTERVAL_MS) return false;
+    var now = Date.now();
+    try{ await window.storage.set(K('lastthrow:'+mySlug), String(now), true); }catch(e){ return false; }
+    var pushIds = [], pushTitle = '', pushBody = '', toastMsg = '';
+
+    if(pick.type === 'rocket'){
+      try{ await window.storage.set(K('shortcut:'+mySlug), JSON.stringify({ issuedAt: now, fromTeam: state.team }), true); }catch(e){ console.error(e); return false; }
+      state.lastShortcutSeen = now;
+      pushIds = teamMemberIds(mySlug);
+      pushTitle = '\uD83D\uDE80 Rocket!';
+      pushBody = 'Your runner takes the half-lap shortcut this lap.';
+      toastMsg = 'Rocket fired \u2014 your runner takes the shortcut!';
+    } else {
+      var targetSlug = pick.target;
+      var targetName = state.teamData[targetSlug].name;
+      var existing = null;
+      try{ var r2 = await window.storage.get(K('challenge:'+targetSlug), true); existing = (r2 && r2.value) ? JSON.parse(r2.value) : null; }catch(e){ existing = null; }
+      if(existing) return false;
+      var ch;
+      if(pick.type === 'blueshell'){
+        var rs = state.teamData[targetSlug].racer;
+        var runnerId = rs.order[rs.currentIndex % rs.order.length];
+        var runnerName = nameForId(runnerId);
+        var dest = (state.session && state.session.blueShellDest) || 'the tennis courts';
+        ch = { powerupId:'blueshell', kind:'detour', exId:'detour', exName:'Run to '+dest, destination: dest, runnerId: runnerId, runnerName: runnerName,
+               cat:'travel', pts:0, boostPct:0, reps:0, issuedAt: now, roster:[runnerId], doneBy:[], fromTeam: state.team, toTeam: targetName };
+        pushTitle = '\uD83D\uDD35 Blue Shell!';
+        pushBody = runnerName + ' must run to ' + dest + '.';
+      } else {
+        var burpee = null;
+        activeExercises().forEach(function(e){ if(e.id === 'burpee') burpee = e; });
+        var bx = burpee || { id:'burpee', name:'Burpee', cat:'strength', pts:3, boostPct:0 };
+        var reps = powerup.attackReps || 5;
+        ch = { powerupId: pick.type, kind:'burpees', exId: bx.id, exName: bx.name, cat: bx.cat, pts: bx.pts, boostPct: bx.boostPct||0, reps: reps,
+               issuedAt: now, roster: teamMemberIds(targetSlug), doneBy:[], fromTeam: state.team, toTeam: targetName };
+        pushTitle = powerup.label + ' incoming!';
+        pushBody = state.team + ' hit your team \u2014 everyone does ' + reps + ' burpees.';
+      }
+      try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
+      pushIds = teamMemberIds(targetSlug);
+      toastMsg = powerup.label + ' sent at ' + targetName + '!';
+    }
+
     try{ await window.storage.set(K('meter:'+mySlug), '0', true); }catch(e){}
-    state.toast = { msg: 'Power unleashed on '+targetTeamName+'!', until: Date.now()+5000 };
+    sendPush(pushIds, pushTitle, pushBody, 'powerup');
+    state.toast = { msg: toastMsg, until: now + 5000 };
     return true;
   }
 
@@ -835,14 +1060,18 @@
     if(!ch){ state.myChallenge = null; render(); return; }
     if(ch.doneBy.indexOf(state.devicePlayerId) === -1){ ch.doneBy.push(state.devicePlayerId); }
     if(ch.doneBy.length >= ch.roster.length){
-      var bonus = ch.reps * ch.pts * (1 + (ch.boostPct||0)/100);
-      var pcbonus = 0;
-      try{ var rb = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (rb && rb.value) ? parseFloat(rb.value) : 0; }catch(e){ pcbonus = 0; }
-      pcbonus += bonus;
-      try{ await window.storage.set(K('pcbonus:'+slug), String(pcbonus), true); }catch(e){}
+      var bonus = (ch.reps||0) * (ch.pts||0) * (1 + (ch.boostPct||0)/100);
+      if(bonus > 0){
+        var pcbonus = 0;
+        try{ var rb = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (rb && rb.value) ? parseFloat(rb.value) : 0; }catch(e){ pcbonus = 0; }
+        pcbonus += bonus;
+        try{ await window.storage.set(K('pcbonus:'+slug), String(pcbonus), true); }catch(e){}
+      }
       try{ await window.storage.delete(K('challenge:'+slug), true); }catch(e){}
       state.myChallenge = null;
-      state.toast = { msg:'Team Challenge Complete! +'+fmtPts(bonus)+' pts to Pit Crew board', until: Date.now()+5000 };
+      state.toast = (ch.kind === 'detour')
+        ? { msg:'Detour complete — back to racing!', until: Date.now()+5000 }
+        : { msg:'Team Challenge Complete! +'+fmtPts(bonus)+' pts to Pit Crew board', until: Date.now()+5000 };
     } else {
       try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){}
       state.myChallenge = ch;
@@ -856,6 +1085,8 @@
     try{ var chKeys = await window.storage.list(K('challenge:'), true); if(chKeys && chKeys.keys){ for(var j=0;j<chKeys.keys.length;j++){ try{ await window.storage.delete(chKeys.keys[j], true); }catch(e){} } } }catch(e){}
     try{ var pcKeys = await window.storage.list(K('pcbonus:'), true); if(pcKeys && pcKeys.keys){ for(var k=0;k<pcKeys.keys.length;k++){ try{ await window.storage.delete(pcKeys.keys[k], true); }catch(e){} } } }catch(e){}
     try{ var meterKeys = await window.storage.list(K('meter:'), true); if(meterKeys && meterKeys.keys){ for(var m=0;m<meterKeys.keys.length;m++){ try{ await window.storage.delete(meterKeys.keys[m], true); }catch(e){} } } }catch(e){}
+    try{ var scKeys = await window.storage.list(K('shortcut:'), true); if(scKeys && scKeys.keys){ for(var q=0;q<scKeys.keys.length;q++){ try{ await window.storage.delete(scKeys.keys[q], true); }catch(e){} } } }catch(e){}
+    try{ var throwKeys = await window.storage.list(K('lastthrow:'), true); if(throwKeys && throwKeys.keys){ for(var t=0;t<throwKeys.keys.length;t++){ try{ await window.storage.delete(throwKeys.keys[t], true); }catch(e){} } } }catch(e){}
     try{ var lbKeys = await window.storage.list(K('leaderboard:'), true); if(lbKeys && lbKeys.keys){ for(var l=0;l<lbKeys.keys.length;l++){ try{ await window.storage.delete(lbKeys.keys[l], true); }catch(e){} } } }catch(e){}
     try{ await window.storage.delete(K('teams'), true); }catch(e){}
   }
@@ -954,8 +1185,8 @@
     state.isQ = true;
     state.qDraft = {
       minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
-      exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, difficulty:e.difficulty, reps:e.reps, included:true}; }),
-      extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100
+      exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, reps:e.reps, included:true}; }),
+      extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100, blueShellDest: 'the tennis courts'
     };
     state.screen = 'qsetup';
   }
@@ -973,19 +1204,15 @@
           '<input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
           '<span class="ex-setup-name">'+e.name+'</span></div>';
         if(e.cat === 'strength'){
-          h += '<div style="margin-bottom:10px;"><span class="ex-mini-label" style="text-align:left;">Reps</span>' +
+          h += '<div style="margin-bottom:10px;"><span class="ex-mini-label" style="text-align:left;">Reps (Easy tier &mdash; Medium and Hard scale up automatically)</span>' +
             '<div class="reps-stepper">' +
             '<button type="button" class="btn-ghost reps-stepper-btn" data-repsminus="'+e.id+'">&minus;</button>' +
             '<input type="number" min="1" step="1" class="reps-stepper-input" data-qreps="'+e.id+'" value="'+(e.reps||10)+'" />' +
             '<button type="button" class="btn-ghost reps-stepper-btn" data-repsplus="'+e.id+'">+</button></div></div>';
+        } else {
+          h += '<div style="margin-bottom:10px;"><span class="ex-mini-label" style="text-align:left;">One-time move &mdash; no rep count, available at any difficulty</span></div>';
         }
         h += '<div class="ex-setup-fields">';
-        h += '<div><span class="ex-mini-label" style="text-align:left;">Difficulty</span><select data-qdiff="'+e.id+'">' +
-          DIFFICULTY_TIERS.map(function(t){ return '<option value="'+t.id+'" '+(e.difficulty===t.id?'selected':'')+'>'+t.label+'</option>'; }).join('') +
-          '</select></div>';
-        if(e.cat !== 'strength'){
-          h += '<div><span class="ex-mini-label" style="text-align:left;">Reps</span><input type="text" value="\u2014 (one-time)" disabled style="color:var(--muted);" /></div>';
-        }
         h += '<div><span class="ex-mini-label" style="text-align:left;">Points</span><input type="number" step="0.25" data-qpts="'+e.id+'" value="'+e.pts+'" /></div>';
         h += '<div><span class="ex-mini-label" style="text-align:left;">Boost %</span><input type="number" step="5" data-qboost="'+e.id+'" value="'+e.boostPct+'" /></div>';
         h += '</div></div>';
@@ -1008,14 +1235,19 @@
     html += '<div class="shell-panel" style="border-color:var(--danger);">';
     html += '<label style="display:flex; align-items:center; gap:8px; margin-bottom:10px; cursor:pointer;">' +
       '<input type="checkbox" id="qExtremeToggle" '+(d.extremeEnabled?'checked':'')+' style="width:auto;" />' +
-      '<span class="shell-eyebrow" style="margin:0;">\uD83D\uDD25 Extreme Challenge (4th difficulty tier)</span></label>';
-    html += '<div class="mission-sub" style="margin-bottom:10px;">A one-off, name-your-own killer move \u2014 like running to the top of a hill. It shows up as its own \u201cExtreme\u201d option when Pit Crew throws a power-up.</div>';
+      '<span class="shell-eyebrow" style="margin:0;">\uD83D\uDD25 Hard Run \u2014 the Big Hill (fills the power meter 100%)</span></label>';
+    html += '<div class="mission-sub" style="margin-bottom:10px;">A one-off, name-your-own killer move \u2014 like running to the top of a hill. It shows up as a 4th \u201cHard Run\u201d button for Pit Crew, and finishing it instantly fills their team\'s power meter.</div>';
     html += '<div class="setup-label" style="text-align:left; margin-bottom:6px;">Name</div>';
     html += '<input id="qExtremeName" type="text" maxlength="40" value="'+d.extremeName+'" style="margin-bottom:10px;" />';
     html += '<div class="row">' +
       '<div><span class="ex-mini-label" style="text-align:left;">Points</span><input id="qExtremePts" type="number" step="1" value="'+d.extremePts+'" /></div>' +
       '<div><span class="ex-mini-label" style="text-align:left;">Boost %</span><input id="qExtremeBoost" type="number" step="5" value="'+d.extremeBoost+'" /></div>' +
     '</div></div></div>';
+
+    html += '<div class="setup-section"><div class="shell-panel" style="border-color:#3ea6ff;">' +
+      '<span class="shell-eyebrow" style="color:#3ea6ff;">\uD83D\uDD35 Blue Shell detour</span>' +
+      '<div class="mission-sub" style="margin:6px 0 10px 0;">When a Blue Shell hits the 1st place team, their current runner must run to this spot before continuing.</div>' +
+      '<input id="qBlueDest" type="text" maxlength="40" value="'+d.blueShellDest+'" /></div></div>';
 
     html += '<div style="height:14px;"></div><button class="btn-primary" id="createGameBtn" style="width:100%;">Create Game &amp; Get Code</button>';
     html += '</div>';
@@ -1026,21 +1258,6 @@
     document.getElementById('qNumPax').onchange = function(){ d.numPax = parseInt(this.value,10)||1; };
     document.getElementById('qNumTeams').onchange = function(){ d.numTeams = parseInt(this.value,10)||2; };
     app.querySelectorAll('[data-qpick]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpick')) e.included = el.checked; }); }; });
-    var REP_SUGGESTIONS = { easy: 8, medium: 15, hard: 22 };
-    var BOOST_SUGGESTIONS = { easy: 0, medium: 15, hard: 30 };
-    app.querySelectorAll('[data-qdiff]').forEach(function(el){
-      el.onchange = function(){
-        var id = el.getAttribute('data-qdiff');
-        d.exercises.forEach(function(e){
-          if(e.id === id){
-            e.difficulty = el.value;
-            if(e.cat === 'strength' && REP_SUGGESTIONS[el.value]){ e.reps = REP_SUGGESTIONS[el.value]; }
-            if(BOOST_SUGGESTIONS[el.value] !== undefined){ e.boostPct = BOOST_SUGGESTIONS[el.value]; }
-          }
-        });
-        renderQSetup();
-      };
-    });
     app.querySelectorAll('[data-qreps]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qreps')) e.reps = parseInt(el.value,10)||1; }); }; });
     app.querySelectorAll('[data-repsminus]').forEach(function(el){
       el.onclick = function(){
@@ -1063,21 +1280,18 @@
       var cat = confirm('Is this a Travel move (distance-based, no rep count)? Cancel = Strength move (rep-based)') ? 'travel' : 'strength';
       var pts = parseFloat(prompt('Points per rep (or per completion for a travel):', '1')) || 1;
       var boostPct = parseFloat(prompt('Booster %:', '0')) || 0;
-      var difficulty = 'medium';
-      var diffAnswer = (prompt('Difficulty: type easy, medium, or hard', 'medium') || 'medium').toLowerCase();
-      if(diffAnswer.indexOf('easy') === 0) difficulty = 'easy';
-      else if(diffAnswer.indexOf('hard') === 0) difficulty = 'hard';
       var reps = 10;
-      if(cat === 'strength'){ reps = parseInt(prompt('Rep count:', '10'),10) || 10; }
-      d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:1, pts:pts, boostPct:boostPct, difficulty:difficulty, reps:reps, included:true});
+      if(cat === 'strength'){ reps = parseInt(prompt('Rep count (this is the Easy-tier count; Medium and Hard scale up automatically):', '10'),10) || 10; }
+      d.exercises.push({id:'custom_'+uid(), name:name.slice(0,20), cat:cat, goal:1, pts:pts, boostPct:boostPct, reps:reps, included:true});
       renderQSetup();
     };
     document.getElementById('qExtremeToggle').onchange = function(){ d.extremeEnabled = this.checked; };
+    document.getElementById('qBlueDest').onchange = function(){ d.blueShellDest = this.value.trim().slice(0,40) || 'the tennis courts'; };
     document.getElementById('qExtremeName').onchange = function(){ d.extremeName = this.value.slice(0,40) || 'Extreme Challenge'; };
     document.getElementById('qExtremePts').onchange = function(){ d.extremePts = parseFloat(this.value) || 1; };
     document.getElementById('qExtremeBoost').onchange = function(){ d.extremeBoost = parseFloat(this.value) || 0; };
     document.getElementById('createGameBtn').onclick = async function(){
-      var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, difficulty:e.difficulty, reps:e.reps}; });
+      var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, reps:e.reps}; });
       if(d.extremeEnabled && d.extremeName.trim()){
         chosen.push({ id:'extreme', name:d.extremeName.trim(), cat:'travel', goal:1, pts:d.extremePts, boostPct:d.extremeBoost });
       }
@@ -1089,7 +1303,9 @@
         if(!exists || !exists.value) break;
         code = genCode();
       }
-      var sess = { durationSec: d.minutes*60, startTime: null, exercises: chosen, numTeams: d.numTeams, numPax: d.numPax };
+      var blueDestEl = document.getElementById('qBlueDest');
+      if(blueDestEl && blueDestEl.value.trim()){ d.blueShellDest = blueDestEl.value.trim().slice(0,40); }
+      var sess = { durationSec: d.minutes*60, startTime: null, exercises: chosen, numTeams: d.numTeams, numPax: d.numPax, blueShellDest: d.blueShellDest };
       try{ await window.storage.set(codeKey(code,'session'), JSON.stringify(sess), true); }
       catch(e){
         console.error('create game failed', e);
@@ -1098,6 +1314,7 @@
       }
       state.code = code; state.session = sess; state.teamsInfo = null; state.leaderboard = [];
       state.screen = 'game';
+      saveResumeQ();
       render();
     };
   }
@@ -1132,13 +1349,16 @@
     html += '<div class="card"><div class="setup-label" style="margin-bottom:8px;">Your name</div>';
     html += '<input id="nameInput" type="text" maxlength="16" placeholder="e.g. HERKY" /><div style="height:16px;"></div>';
     html += '<div class="mission-sub">The Q will randomly assign your team and your team\'s run order \u2014 you\'ll rotate through being the racer, one at a time.</div><div style="height:12px;"></div>';
+    if(isIOS() && !isStandaloneApp()){
+      html += '<div class="mission-sub" style="color:var(--gold);">\uD83D\uDD14 Want alerts on your watch? Before joining, tap Share \u2192 <b>Add to Home Screen</b>, then open Rep Rumble from your Home Screen.</div><div style="height:12px;"></div>';
+    }
     html += '<button class="btn-primary" id="joinBtn" style="width:100%;">Join</button></div>';
     app.innerHTML = html;
     document.getElementById('joinBtn').onclick = async function(){
       var v = document.getElementById('nameInput').value.trim();
       if(!v){ document.getElementById('nameInput').focus(); return; }
       hapticTap();
-      unlockAudio();
+      unlockAudio(true);
       state.playerName = v.slice(0,16).toUpperCase();
       state.mode = 'random';
       if(!state.devicePlayerId){ state.devicePlayerId = uid(); try{ await window.storage.set('device-player-id', state.devicePlayerId, false); }catch(e){} }
@@ -1146,7 +1366,10 @@
       await pushLeaderboardEntry();
       await fetchTeams(); await applyMyTeamAssignment();
       await refreshTeamsData(); await refreshMyChallenge();
+      saveResume();
+      var pushDone = setupPush();
       render();
+      reloadAfterJoin(pushDone);
     };
   }
 
@@ -1154,6 +1377,7 @@
     var html = '<p class="eyebrow">Code: '+state.code+'</p><h1 class="title pixel" style="font-size:18px;">'+state.playerName+'</h1><hr class="rule"/>';
     html += '<div class="card"><div class="setup-label" style="margin-bottom:10px;"><span class="spinner-dot"></span>'+msg+'</div>';
     if(state.team){ html += '<div class="team-tag">&#9650; '+state.team+'</div>'; }
+    html += pushStatusLine();
     html += '</div>';
     app.innerHTML = html;
   }
@@ -1239,6 +1463,7 @@
       render();
     };
     document.getElementById('endBtn').onclick = function(){
+      clearResume();
       state.screen = 'hub'; state.isQ = false; state.code = null; state.session = null; state.teamsInfo = null;
       state.leaderboard = []; state.playerName = null;
       render();
@@ -1283,7 +1508,9 @@
     var ch = state.myChallenge;
     if(!ch) return html;
     var pu = powerupById(ch.powerupId || 'greenshell');
+    var isDetour = (ch.kind === 'detour');
     var iAmDone = ch.doneBy.indexOf(state.devicePlayerId) >= 0;
+    var iAmInRoster = ch.roster.indexOf(state.devicePlayerId) >= 0;
     var fromFlair = ch.fromTeam ? teamFlair(ch.fromTeam) : null;
     html += '<div class="shell-panel" style="border-color:'+pu.color+';">';
     html += '<div class="challenge-icon-wrap">'+powerupIconSVG(pu.id, 84)+'</div>';
@@ -1291,11 +1518,21 @@
     if(ch.fromTeam){
       html += '<div style="text-align:center; font-size:13px; color:var(--muted); margin-bottom:8px; text-transform:uppercase;">'+(fromFlair?fromFlair.emoji+' ':'')+ch.fromTeam+' hit your team!</div>';
     }
-    html += '<div class="challenge-exercise-huge">'+(ch.cat==='travel' ? ch.exName : (ch.reps+' &times; '+ch.exName))+'</div>';
-    html += '<div class="challenge-progress">'+ch.doneBy.length+' / '+ch.roster.length+' teammates confirmed done</div>';
-    if(!timeUp){
-      if(iAmDone){ html += '<div class="banner boost" style="font-size:16px; padding:16px;">Waiting on the rest of your team&hellip;</div>'; }
-      else { html += '<button class="btn-green btn-huge" id="challengeDoneBtn">I\'M DONE</button>'; }
+    if(isDetour){
+      html += '<div class="challenge-exercise-huge">'+ch.exName+'</div>';
+      html += '<div class="challenge-progress">Runner: '+(ch.runnerName||'your runner')+'</div>';
+      if(!timeUp){
+        if(iAmDone){ html += '<div class="banner boost" style="font-size:16px; padding:16px;">Detour logged &mdash; carry on!</div>'; }
+        else if(iAmInRoster){ html += '<button class="btn-green btn-huge" id="challengeDoneBtn">I\'M DONE</button>'; }
+        else { html += '<div class="banner boost" style="font-size:16px; padding:16px;">Cheer on '+(ch.runnerName||'your runner')+'!</div>'; }
+      }
+    } else {
+      html += '<div class="challenge-exercise-huge">'+(ch.cat==='travel' ? ch.exName : (ch.reps+' &times; '+ch.exName))+'</div>';
+      html += '<div class="challenge-progress">'+ch.doneBy.length+' / '+ch.roster.length+' teammates confirmed done</div>';
+      if(!timeUp){
+        if(iAmDone){ html += '<div class="banner boost" style="font-size:16px; padding:16px;">Waiting on the rest of your team&hellip;</div>'; }
+        else { html += '<button class="btn-green btn-huge" id="challengeDoneBtn">I\'M DONE</button>'; }
+      }
     }
     html += '</div>';
     return html;
@@ -1515,10 +1752,20 @@
       var curFlair = teamFlair(myTeamData.name); html += '<div class="banner boost">'+curFlair.emoji+' Current Racer: '+curName+'</div>';
     }
 
+    if(!iAmRacer && myTeamData && myTeamData.shortcut){
+      html += '<div class="banner boost">\uD83D\uDE80 Rocket active &mdash; your runner takes the half-lap shortcut</div>';
+    }
+
     // ---- MAIN ACTION: the thing PAX actually need to see and press ----
     if(iAmRacer){
       html += '<div class="banner won">You\'re up! Run your lap, then tap below to hand off.</div>';
+      if(myTeamData && myTeamData.shortcut){
+        html += '<div class="shell-panel" style="border-color:#e8e8f0;"><div class="challenge-icon-wrap">'+powerupIconSVG('rocket', 72)+'</div>' +
+          '<div class="challenge-label" style="color:#e8e8f0;">Rocket Shortcut!</div>' +
+          '<div class="challenge-exercise-huge" style="font-size:26px;">Take the half-lap shortcut this lap</div></div>';
+      }
       html += '<button class="lap-btn" id="lapBtn" '+(timeUp?'disabled':'')+'>&#127937; LAP COMPLETE</button>';
+      if(!timeUp){ html += '<button class="btn-ghost" id="skipBtn" style="width:100%; margin-bottom:16px;">Skip my turn (injury)</button>'; }
     } else if(state.assignedExercise){
       var a = state.assignedExercise;
       var aTier = (a.difficultyId === 'extreme') ? {label:'\uD83D\uDD25 Hard Run', color:'#ff0044'} : difficultyById(a.difficultyId);
@@ -1553,9 +1800,18 @@
       html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Your Team\'s Run Order</div>' + renderRunOrder(mySlug) + '</div>';
     }
 
+    html += '<div class="card" style="margin-bottom:16px;">' +
+      '<button class="btn-ghost" id="sitOutBtn" style="width:100%; '+(state.skipRuns?'border-color:var(--gold); color:var(--gold);':'')+'">\uD83E\uDE79 Sit out runs: '+(state.skipRuns?'ON':'OFF')+'</button>' +
+      '<div class="mission-sub" style="margin:8px 0 0 0;">'+(state.skipRuns?'You\'ll be skipped in your team\'s run order and stay on pit crew.':'Turn this on if you\'re nursing an injury &mdash; you\'ll be skipped in the run order.')+'</div>' +
+      pushStatusLine() + '</div>';
+
     html += renderStandings();
     app.innerHTML = html;
     wireCommonNav();
+    var skipBtn = document.getElementById('skipBtn');
+    if(skipBtn){ skipBtn.onclick = function(){ hapticTap(); if(confirm('Skip your turn and hand the baton to the next runner?')){ skipTurn(); } }; }
+    var sitOutBtn = document.getElementById('sitOutBtn');
+    if(sitOutBtn){ sitOutBtn.onclick = function(){ hapticTap(); toggleSitOut(); }; }
     var lapBtn = document.getElementById('lapBtn');
     if(lapBtn){ lapBtn.onclick = function(){ hapticTap(); completeLap(); }; }
     var challengeDoneBtn = document.getElementById('challengeDoneBtn');
@@ -1573,6 +1829,7 @@
     var hubBtn = document.getElementById('hubBtn');
     if(hubBtn){
       hubBtn.onclick = function(){
+        clearResume();
         state.screen='hub'; state.playerName=null; state.isQ=false; state.code=null;
         state.session=null; state.teamsInfo=null; state.leaderboard=[]; state.team=null;
         render();
@@ -1611,6 +1868,77 @@
     if(state.screen === 'game'){ renderGame(); return; }
   }
 
+  // ---------- remembering your game across a page reload ----------
+  var RESUME_KEY = 'rr-resume';
+  var RESUME_Q_KEY = 'rr-resume-q';
+  function quiet(p){ if(p && p.catch){ p.catch(function(){}); } }
+  function saveResume(){
+    quiet(window.storage.set(RESUME_KEY, JSON.stringify({ gameId: state.gameId, code: state.code, playerName: state.playerName, savedAt: Date.now() }), false));
+  }
+  function saveResumeQ(){
+    quiet(window.storage.set(RESUME_Q_KEY, JSON.stringify({ gameId: state.gameId, code: state.code, savedAt: Date.now() }), false));
+  }
+  function clearResume(){
+    quiet(window.storage.delete(RESUME_KEY, false));
+    quiet(window.storage.delete(RESUME_Q_KEY, false));
+  }
+  function navigationType(){
+    try{
+      var nav = (window.performance && window.performance.getEntriesByType) ? window.performance.getEntriesByType('navigation')[0] : null;
+      return nav ? nav.type : '';
+    }catch(e){ return ''; }
+  }
+  function reloadPage(){ try{ window.location.reload(); }catch(e){} }
+
+  // iPhones remember what you typed (the code and your name) and offer "Undo Typing" when you shake the phone.
+  // Loading the page fresh clears that history, and saveResume() lets the reload drop you straight back in.
+  async function reloadAfterJoin(pushDone){
+    try{ await Promise.race([pushDone, new Promise(function(r){ setTimeout(r, 12000); })]); }catch(e){}
+    try{ if('Notification' in window && Notification.permission === 'default'){ return; } }catch(e){}
+    if(state.screen === 'game' && state.playerName && !state.isQ){ reloadPage(); }
+  }
+
+  // Players come back to their game; the Q only comes back after a refresh (so a fresh visit starts clean).
+  async function tryResume(urlCode, wantsSetup){
+    if(wantsSetup) return false;
+    var raw = null, asQ = false;
+    try{ var r = await window.storage.get(RESUME_KEY, false); raw = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ raw = null; }
+    if(!raw && navigationType() === 'reload'){
+      try{ var rq = await window.storage.get(RESUME_Q_KEY, false); raw = (rq && rq.value) ? JSON.parse(rq.value) : null; }catch(e){ raw = null; }
+      asQ = !!raw;
+    }
+    if(!raw || !raw.code || !raw.gameId || !GAMES[raw.gameId]) return false;
+    if(!asQ && !state.devicePlayerId) return false;   // players need their device ID; the Q never has one
+    if(Date.now() - (raw.savedAt || 0) > 6*3600*1000){ clearResume(); return false; }
+    if(urlCode && urlCode !== raw.code) return false;
+
+    state.gameId = raw.gameId; state.gameConfig = GAMES[raw.gameId]; state.code = raw.code;
+    var sess = null;
+    try{ var rs = await window.storage.get(codeKey(raw.code, 'session'), true); sess = (rs && rs.value) ? JSON.parse(rs.value) : null; }catch(e){ sess = null; }
+    var over = sess && sess.startTime && (Date.now() > sess.startTime + sess.durationSec*1000 + 15*60*1000);
+    if(!sess || over || (!asQ && !raw.playerName)){
+      clearResume(); state.gameId = null; state.gameConfig = null; state.code = null; return false;
+    }
+    state.session = sess; state.screen = 'game'; state.isQ = asQ; state.mode = 'random';
+    if(!asQ){ state.playerName = raw.playerName; }
+    await fetchTeams(); await fetchLeaderboard();
+    if(!asQ){
+      state.leaderboard.forEach(function(e){
+        if(e._key === K('leaderboard:'+state.devicePlayerId)){
+          state.tapEarnings = e.score || 0; state.skipRuns = !!e.skipRuns; if(e.team){ state.team = e.team; }
+        }
+      });
+      await pushLeaderboardEntry();
+      await applyMyTeamAssignment();
+    }
+    await refreshTeamsData();
+    if(!asQ){
+      await refreshMyChallenge();
+      try{ if('Notification' in window && Notification.permission === 'granted'){ setupPush(); } }catch(e){}
+    }
+    return true;
+  }
+
   async function init(){
     if(!window.storage || typeof window.storage.get !== 'function'){
       app.innerHTML = '<div class="card"><p class="eyebrow" style="color:var(--danger);">Storage Unavailable</p>' +
@@ -1624,7 +1952,12 @@
     var joinGame = params.get('join');
     var setupGame = params.get('setup');
     var prefillCode = params.get('code');
-    if(setupGame && GAMES[setupGame] && GAMES[setupGame].hasGameCode){
+    armAudioUnlock();
+    var resumed = false;
+    try{ resumed = await tryResume((prefillCode || '').toUpperCase(), !!setupGame); }catch(e){ console.error('resume failed', e); resumed = false; }
+    if(resumed){
+      // straight back into the game
+    } else if(setupGame && GAMES[setupGame] && GAMES[setupGame].hasGameCode){
       state.gameId = setupGame;
       state.gameConfig = GAMES[setupGame];
       startQSetup();
@@ -1647,7 +1980,17 @@
         if(state.isQ || state.playerName){
           await fetchLeaderboard();
           if(!state.isQ){ await applyMyTeamAssignment(); }
-          if(state.gameConfig.hasRoles){ await refreshTeamsData(); if(!state.isQ){ await refreshMyChallenge(); } }
+          if(state.gameConfig.hasRoles){
+            await refreshTeamsData();
+            if(!state.isQ){
+              await refreshMyChallenge(); await tryFireBankedPowerup(); await refreshTeamsData();
+              var myTd = state.team ? state.teamData[teamSlug(state.team)] : null;
+              if(myTd && myTd.shortcut && myTd.shortcut.issuedAt !== state.lastShortcutSeen){
+                state.lastShortcutSeen = myTd.shortcut.issuedAt;
+                notifyPowerupHit('Rocket! Your runner takes the half-lap shortcut.');
+              }
+            }
+          }
         }
         render();
       }

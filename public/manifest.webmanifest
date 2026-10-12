@@ -1,0 +1,14 @@
+{
+  "name": "Rep Rumble Arcade",
+  "short_name": "Rep Rumble",
+  "description": "Group fitness games for your workout crew",
+  "start_url": "/?join=mariokart",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#08060c",
+  "theme_color": "#08060c",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
