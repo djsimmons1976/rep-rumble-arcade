@@ -102,6 +102,42 @@ git push
 
 Azure will automatically rebuild and redeploy within a minute or two.
 
+## Big-screen dashboard (the Q, computer only)
+
+The Q screen is for a computer and a projector - phones and tablets are blocked from opening it
+(they see "needs a computer"). Once the game starts it shows only what a crowd needs:
+
+- a big countdown **timer**
+- **the track** with every team's marker and lap count
+- **Team Progress**: one card per team with bars for **laps**, **power meter** and **power-up points**
+- any active power-ups ("who got hit")
+
+The code, the player list and run orders are shown before the game starts.
+
+## The end of the game
+
+When the timer hits zero, every phone and the dashboard **flash red with a siren for 10 seconds**
+("TIME'S UP!"), phones vibrate, and the Q's computer also sends a lock-screen alert to every
+player (and their watch). Then everyone sees the **final standings** for both laps and power-up
+points, with a champion for each. Laps and points freeze at the whistle, nothing counts after
+it, and a phone opened afterwards goes straight to the standings with no flash.
+
+The flash is a slow pulse (about once a second), not a rapid strobe. The siren needs the screen
+to have been tapped/clicked at least once since the page loaded (a browser rule) - clicking
+"Start Game Now" does that on the Q's computer.
+
+## Customizing names (no code needed)
+
+On the Q setup screen you can rename:
+
+- every **exercise** (the name box at the top of each exercise card)
+- every **team** (the "Team names" section; each team keeps its own color and icon)
+- every **power-up**, and set how many burpees Banana / Green Shell / Red Shell cost
+  (the "Power-up names" section)
+
+To change the *built-in defaults* for good instead, edit the top of `public/index.html`:
+`MASTER_EXERCISES`, `TEAM_PALETTE_INFO` and `POWERUP_TYPES`.
+
 ## Power-ups (Mario Grand Prix rules)
 
 When a team's power meter hits 100% a power-up fires automatically, chosen from whatever
@@ -112,10 +148,10 @@ makes sense for where that team sits in the standings:
 - **Red Shell** - team directly ahead does 7 burpees
 - **Blue Shell** - the 1st place team's current runner detours to a spot the Q names in setup
   (default: the tennis courts)
-- **Rocket** - your own runner takes a half-lap shortcut on their next lap
+- **Rocket** - the NEXT runner takes a half-lap shortcut on their lap (it is "loaded" when it
+  fires and becomes active the moment the baton passes, by Lap Complete or a skipped turn)
 
-The team in **1st place only ever gets Bananas**. Burpee counts live in `POWERUP_TYPES`
-(`attackReps`) in `public/index.html`.
+The team in **1st place only ever gets Bananas**.
 
 ## Lock-screen and smartwatch alerts (Web Push)
 
@@ -132,9 +168,6 @@ Alerts arrive even when the phone is locked, and mirror to a paired watch.
 
 ## "Undo Typing" when you shake the phone (iPhone)
 
-iPhones remember what was typed (game code and name) and show "Undo Typing" when shaken.
-Loading the page fresh clears that, so right after a player joins the app reloads once and
-drops them straight back into their game (the game is remembered in the phone's local
-storage and cleared by the "All Games" button). A player or the Q who refreshes mid-game
-comes straight back too. If the prompt ever still appears, the guaranteed fix is on the phone:
-Settings -> Accessibility -> Touch -> Shake to Undo -> Off.
+Right after a player joins the app reloads once (which clears the iPhone's typing history) and
+drops them straight back into their game. A player or the Q who refreshes mid-game comes straight
+back too. If the prompt ever still appears: Settings -> Accessibility -> Touch -> Shake to Undo -> Off.

@@ -78,6 +78,7 @@
   .ex-setup-fields{display:flex; gap:8px; flex-wrap:wrap;}
   .ex-setup-fields > div{flex:1; min-width:70px;}
   .ex-setup-fields select{padding:8px; font-size:12px;}
+  .ex-name-input{flex:1; min-width:0; font-weight:700; text-transform:uppercase; font-size:13px !important; padding:8px !important;}
   .reps-stepper{display:flex; align-items:stretch; gap:6px;}
   .reps-stepper-btn{flex:0 0 52px; font-size:22px; padding:10px 0; line-height:1;}
   .reps-stepper-input{flex:1; min-width:70px; text-align:center; font-size:20px !important; font-weight:700; padding:10px !important;}
@@ -115,7 +116,7 @@
   .lb-row{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line); border-radius:3px; margin-bottom:6px; font-size:13px;}
   .lb-row.me{border-color:var(--hot-pink); background:rgba(255,47,126,0.06);}
   .lb-row.team{border-color:var(--violet); background:rgba(155,92,255,0.06);}
-  .lb-rank{color:var(--muted); width:24px;}
+  .lb-rank{color:var(--muted); min-width:24px; margin-right:8px; white-space:nowrap;}
   .lb-name{flex:1; text-transform:uppercase; font-weight:700;}
   .lb-sub{font-size:10px; color:var(--muted); font-weight:400; margin-left:6px;}
   .lb-badge{font-size:10px; color:var(--mint); margin-left:6px;}
@@ -143,6 +144,44 @@
   .code-display{font-family:'Press Start 2P'; font-size:42px; letter-spacing:6px; color:var(--sky); text-align:center; padding:20px 0;}
   .code-input{font-family:'Press Start 2P' !important; font-size:22px !important; letter-spacing:8px !important; text-align:center; text-transform:uppercase;}
   .big-choice{width:100%; padding:20px; margin-bottom:12px; font-size:14px;}
+  /* ---- projector / big screen ---- */
+  .q-topline{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:10px 0 4px 0;}
+  .q-code-small{font-family:'Press Start 2P'; font-size:clamp(14px,1.6vw,26px); color:var(--sky); letter-spacing:4px;}
+  .q-timer-wrap{text-align:center; margin:4px 0 16px 0;}
+  .q-timer-label{font-size:clamp(12px,1.4vw,22px); color:var(--muted); letter-spacing:4px; text-transform:uppercase; margin-bottom:6px;}
+  .q-timer{display:inline-block; padding:4px 44px; border-radius:14px; font-family:'Press Start 2P'; font-size:clamp(44px,7vw,130px); line-height:1.15; color:var(--text);}
+  .q-timer.urgent{color:var(--danger); animation:pulse 1s infinite;}
+  .q-grid{display:grid; grid-template-columns:1fr; gap:16px; align-items:start;}
+  @media (min-width:1100px){ .q-grid{grid-template-columns:1.3fr 1fr;} }
+  .prog-card{background:var(--panel); border:2px solid var(--line); border-radius:6px; padding:14px 16px; margin-bottom:12px;}
+  .prog-name{font-weight:700; text-transform:uppercase; font-size:clamp(14px,1.8vw,30px); margin-bottom:6px;}
+  .bar-row{display:flex; align-items:center; gap:12px; margin:8px 0;}
+  .bar-label{flex:0 0 clamp(64px,7vw,130px); font-size:clamp(11px,1.2vw,20px); color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
+  .bar-trk{flex:1; height:clamp(18px,2.4vw,38px); background:#1c1a24; border-radius:6px; overflow:hidden;}
+  .bar-fil{height:100%; border-radius:6px; transition:width .7s ease;}
+  .bar-val{flex:0 0 clamp(70px,8vw,150px); text-align:right; font-family:'Press Start 2P'; font-size:clamp(10px,1.2vw,22px);}
+  /* ---- game over ---- */
+  .end-flash{position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; animation:endPulse 0.8s ease-in-out infinite; transition:opacity .6s ease;}
+  .end-flash.fade{opacity:0;}
+  @keyframes endPulse{0%{background:#ff0000;} 50%{background:#5a0000;} 100%{background:#ff0000;}}
+  .end-flash-text{font-family:'Press Start 2P'; font-size:clamp(28px,9vw,130px); line-height:1.3; color:#fff; text-shadow:0 0 24px #000;}
+  .end-flash-sub{font-family:'Press Start 2P'; font-size:clamp(14px,3vw,48px); color:#fff; margin-top:18px; letter-spacing:4px;}
+  .final-title{font-family:'Press Start 2P'; text-align:center; font-size:clamp(20px,4vw,56px); line-height:1.4; margin:14px 0 10px 0;}
+  .final-grid{display:grid; grid-template-columns:1fr; gap:16px;}
+  @media (min-width:1000px){ .final-grid.wide{grid-template-columns:1fr 1fr;} }
+  .winner-banner{text-align:center; padding:14px; border:2px solid var(--gold); border-radius:6px; background:linear-gradient(90deg, rgba(255,201,60,0.15), rgba(255,47,126,0.15)); text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; font-size:clamp(13px,1.6vw,28px);}
+  .rank-row{margin-bottom:16px;}
+  .rank-head{display:flex; align-items:baseline; gap:10px; margin-bottom:6px;}
+  .rank-medal{flex:0 0 auto; font-size:clamp(16px,2vw,34px);}
+  .rank-medal .podium-emoji{font-size:inherit; margin-right:6px;}
+  .final-grid.wide .rank-row{margin-bottom:28px;}
+  .final-grid.wide .rank-name{font-size:clamp(16px,2.4vw,46px);}
+  .final-grid.wide .rank-val{font-size:clamp(12px,1.6vw,32px);}
+  .final-grid.wide .rank-medal{font-size:clamp(18px,2.6vw,50px);}
+  .final-grid.wide .bar-trk{height:clamp(26px,3.2vw,60px);}
+  .winner-banner.wide{font-size:clamp(16px,2.3vw,42px); padding:20px;}
+  .rank-name{flex:1; font-weight:700; text-transform:uppercase; font-size:clamp(14px,1.8vw,32px);}
+  .rank-val{font-family:'Press Start 2P'; font-size:clamp(11px,1.3vw,24px); color:var(--gold);}
   .checkered-strip{
     height:14px; margin:10px 0 18px 0; border-radius:2px;
     background-image:
@@ -294,9 +333,25 @@
   ];
   var TEAM_PALETTE = TEAM_PALETTE_INFO.map(function(p){ return p.word; });
 
+  // Strips characters that could break the page, so names the Q types are always safe to show.
+  function cleanName(v, max){
+    return String(v == null ? '' : v).replace(/[<>"`\\&]/g, '').replace(/\s+/g, ' ').trim().slice(0, max || 30);
+  }
+  function escAttr(v){
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  // Team names come from the Q's setup (falling back to the built-in NEON/VOLT/... names).
+  function teamNameForIndex(i){
+    var names = state.session && state.session.teamNames;
+    if(names && names[i]) return names[i];
+    return 'TEAM ' + TEAM_PALETTE[i % TEAM_PALETTE.length];
+  }
+
   function teamFlair(teamName){
     if(!teamName) return {word:'', color:'var(--sky)', emoji:'\uD83C\uDFCE\uFE0F'};
     var upper = teamName.toUpperCase();
+    var styles = state.session && state.session.teamStyles;
+    if(styles && styles[upper]){ return { word:'', color: styles[upper].color, emoji: styles[upper].emoji }; }
     for(var i=0;i<TEAM_PALETTE_INFO.length;i++){
       if(upper.indexOf(TEAM_PALETTE_INFO[i].word) >= 0) return TEAM_PALETTE_INFO[i];
     }
@@ -314,7 +369,7 @@
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
     isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
-    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null, skipRuns:false, lastShortcutSeen:null, pushStatus:null
+    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null, skipRuns:false, lastShortcutSeen:null, pushStatus:null, endHandledFor:null
   };
 
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
@@ -370,6 +425,13 @@
   }
   function isIOS(){
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+  // The Q dashboard is built for a computer and a projector, so phones and tablets can't open it.
+  function isMobileDevice(){
+    var ua = navigator.userAgent || '';
+    if(/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(ua)) return true;
+    if(/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;   // iPad pretending to be a Mac
+    return false;
   }
   function isStandaloneApp(){
     return (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
@@ -471,8 +533,12 @@
     return found;
   }
   function powerupById(id){
-    for(var i=0;i<POWERUP_TYPES.length;i++){ if(POWERUP_TYPES[i].id === id) return POWERUP_TYPES[i]; }
-    return POWERUP_TYPES[0];
+    var base = POWERUP_TYPES[0];
+    for(var i=0;i<POWERUP_TYPES.length;i++){ if(POWERUP_TYPES[i].id === id) base = POWERUP_TYPES[i]; }
+    var ov = state.session && state.session.powerups && state.session.powerups[base.id];
+    if(!ov) return base;
+    return { id: base.id, label: ov.label || base.label, color: base.color,
+             attackReps: (typeof ov.reps === 'number' && ov.reps > 0) ? ov.reps : base.attackReps, desc: base.desc };
   }
   function powerupIconSVG(id, size){
     size = size || 64;
@@ -610,7 +676,7 @@
     var groups = {};
     arr.forEach(function(entry, idx){
       var pid = entry._key.replace(K('leaderboard:'),'');
-      var teamName = 'TEAM ' + TEAM_PALETTE[idx % numTeams % TEAM_PALETTE.length];
+      var teamName = teamNameForIndex(idx % numTeams);
       assignments[pid] = teamName;
       var slug = teamSlug(teamName);
       if(!groups[slug]) groups[slug] = [];
@@ -697,12 +763,15 @@
   function lapInfoFor(slug){
     var td = state.teamData[slug];
     if(!td || !state.session || !state.session.startTime) return {completed:0, fraction:0, total:0};
-    var completed = td.laps.length;
+    // Laps and partial laps freeze at the final whistle so the final standings never move.
+    var endAt = state.session.startTime + (state.session.durationSec || 0) * 1000;
+    var lapsDone = td.laps.filter(function(t){ return t <= endAt; });
+    var completed = lapsDone.length;
     if(completed === 0) return {completed:0, fraction:0, total:0};
-    var now = Date.now();
+    var now = Math.min(Date.now(), endAt);
     var elapsedNow = (now - state.session.startTime)/1000;
     var avg = elapsedNow/completed;
-    var lastLapTime = (td.laps[completed-1] - state.session.startTime)/1000;
+    var lastLapTime = (lapsDone[completed-1] - state.session.startTime)/1000;
     var sinceLast = elapsedNow - lastLapTime;
     var fraction = avg > 0 ? Math.min(0.99, sinceLast/avg) : 0;
     return {completed:completed, fraction:fraction, total: completed+fraction};
@@ -721,22 +790,27 @@
   function renderTrackView(){
     var slugs = Object.keys(state.teamData);
     if(slugs.length === 0) return '<div class="empty">No teams on the track yet.</div>';
-    var cx = 420, cy = 220, rx = 360, ry = 170;
-    var svg = '<svg viewBox="0 0 840 440" style="width:100%; height:auto;">';
-    svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(rx+34)+'" ry="'+(ry+34)+'" fill="none" stroke="#2b2838" stroke-width="68"/>';
+    var cx = 420, cy = 250, rx = 320, ry = 150;
+    var svg = '<svg viewBox="0 0 840 500" style="width:100%; height:auto; display:block;">';
+    svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="none" stroke="#2b2838" stroke-width="64"/>';
     svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="none" stroke="#55506a" stroke-width="2" stroke-dasharray="10 10"/>';
-    svg += '<polygon points="'+(cx)+',24 '+(cx-14)+',44 '+(cx+14)+',44" fill="#fff"/>';
-    slugs.forEach(function(slug){
+    svg += '<rect x="'+(cx-4)+'" y="'+(cy-ry-32)+'" width="8" height="64" fill="#fff"/>';
+    svg += '<text x="'+cx+'" y="'+(cy-ry+78)+'" text-anchor="middle" font-size="15" fill="#8a8794" style="font-family:monospace; letter-spacing:3px;">&#9650; START / FINISH</text>';
+    var stable = slugs.slice().sort();      // a fixed order, so labels don't jump around as scores change
+    stable.forEach(function(slug, idx){
       var td = state.teamData[slug];
       var info = lapInfoFor(slug);
       var flair = teamFlair(td.name);
       var angle = (info.fraction * Math.PI * 2) - (Math.PI/2);
       var x = cx + rx * Math.cos(angle);
       var y = cy + ry * Math.sin(angle);
-      svg += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="22" fill="'+flair.color+'" stroke="#000" stroke-width="3"/>';
-      svg += '<text x="'+x.toFixed(1)+'" y="'+(y.toFixed(1))+'" text-anchor="middle" dominant-baseline="central" font-size="20">'+flair.emoji+'</text>';
-      var labelY = y + (y > cy ? 40 : -34);
-      svg += '<text x="'+x.toFixed(1)+'" y="'+labelY+'" text-anchor="middle" font-size="16" font-weight="700" fill="'+flair.color+'" style="font-family:monospace; text-transform:uppercase;">'+td.name+' &middot; L'+info.completed+'</text>';
+      svg += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="24" fill="'+flair.color+'" stroke="#000" stroke-width="3"/>';
+      svg += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="22">'+flair.emoji+'</text>';
+      var stack = idx % 2;
+      var labelY = (y <= cy) ? (y - 38 - stack*26) : (y + 50 + stack*26);
+      var anchor = x < 240 ? 'start' : (x > 600 ? 'end' : 'middle');
+      var labelX = anchor === 'start' ? Math.max(8, x - 24) : (anchor === 'end' ? Math.min(832, x + 24) : x);
+      svg += '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="'+anchor+'" font-size="19" font-weight="700" fill="'+flair.color+'" stroke="#000" stroke-width="4" paint-order="stroke" style="font-family:monospace; text-transform:uppercase;">'+td.name+' &middot; L'+info.completed+'</text>';
     });
     svg += '</svg>';
     return svg;
@@ -779,7 +853,7 @@
       }
       if(td.shortcut){
         html += '<div class="lb-row" style="border-left:3px solid #e8e8f0;"><span class="lb-name">'+toFlair.emoji+' '+td.name+
-          '<span class="lb-sub">\uD83D\uDE80 Rocket: half-lap shortcut for their runner</span></span></div>';
+          '<span class="lb-sub">\uD83D\uDE80 '+powerupById('rocket').label+': '+(((td.shortcut.state || 'active') === 'pending') ? ('loaded for '+nextRunnerNameFor(td)+'\'s lap') : (currentRunnerNameFor(td)+' takes the half-lap shortcut'))+'</span></span></div>';
       }
     });
     html += '</div>';
@@ -804,6 +878,29 @@
     return arr;
   }
 
+  function nextRunnerNameFor(td){
+    if(!td || !td.racer || !td.racer.order || !td.racer.order.length) return 'your next runner';
+    return nameForId(td.racer.order[nextRunnerIndex(td.racer)]);
+  }
+  function currentRunnerNameFor(td){
+    if(!td || !td.racer || !td.racer.order || !td.racer.order.length) return 'their runner';
+    return nameForId(td.racer.order[td.racer.currentIndex % td.racer.order.length]);
+  }
+
+  // A Rocket that is "pending" becomes active for whoever is now up; one that is active is used up.
+  async function advanceShortcut(slug, newRunnerId, runnerFinishedLap){
+    var sc = null;
+    try{ var r = await window.storage.get(K('shortcut:'+slug), true); sc = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ sc = null; }
+    if(!sc) return;
+    if(sc.state === 'pending'){
+      sc.state = 'active'; sc.activatedAt = Date.now();
+      try{ await window.storage.set(K('shortcut:'+slug), JSON.stringify(sc), true); }catch(e){}
+      if(newRunnerId){ sendPush([newRunnerId], '\uD83D\uDE80 You\'re up with the ' + powerupById('rocket').label + '!', 'Take the half-lap shortcut on your lap.', 'shortcut'); }
+    } else if(runnerFinishedLap){
+      try{ await window.storage.delete(K('shortcut:'+slug), true); }catch(e){}
+    }
+  }
+
   function isSittingOut(pid){
     var out = false;
     state.leaderboard.forEach(function(e){ if(e._key === K('leaderboard:'+pid) && e.skipRuns) out = true; });
@@ -822,6 +919,7 @@
 
   async function completeLap(){
     if(!state.team) return;
+    var tlL = timeLeftSec(); if(tlL !== null && tlL <= 0) return;
     var slug = teamSlug(state.team);
     var arr = [];
     try{ var r = await window.storage.get(K('laps:'+slug), true); arr = (r && r.value) ? JSON.parse(r.value) : []; }catch(e){ arr = []; }
@@ -833,7 +931,7 @@
       rs.currentIndex = nextRunnerIndex(rs);
       try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
     }
-    try{ await window.storage.delete(K('shortcut:'+slug), true); }catch(e){}
+    await advanceShortcut(slug, (rs && rs.order && rs.order.length) ? rs.order[rs.currentIndex % rs.order.length] : null, true);
     await refreshTeamsData();
     render();
   }
@@ -841,6 +939,7 @@
   // Hand the baton to the next runner WITHOUT logging a lap.
   async function skipTurn(){
     if(!state.team) return;
+    var tlS = timeLeftSec(); if(tlS !== null && tlS <= 0) return;
     var slug = teamSlug(state.team);
     var rs = null;
     try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
@@ -851,6 +950,7 @@
     rs.currentIndex = next;
     try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
     state.toast = { msg:'Turn skipped \u2014 baton passed on.', until: Date.now()+4000 };
+    await advanceShortcut(slug, rs.order[rs.currentIndex % rs.order.length], false);
     await refreshTeamsData();
     render();
   }
@@ -880,6 +980,7 @@
   }
 
   function assignExercise(difficultyId){
+    var tlE = timeLeftSec(); if(tlE !== null && tlE <= 0) return;
     if(difficultyId === 'extreme'){
       var extremeEx = findExtremeExercise();
       if(!extremeEx){ alert('No Extreme Challenge is set up for this game.'); return; }
@@ -908,6 +1009,7 @@
   async function completeAssignedExercise(){
     var a = state.assignedExercise;
     if(!a) return;
+    var tlA = timeLeftSec(); if(tlA !== null && tlA <= 0) return;
     var repCount = a.reps || 1;
     var earned = a.pts * repCount * (1 + (a.boostPct||0)/100);
     state.tapEarnings += earned;
@@ -955,10 +1057,12 @@
 
   function sendPush(deviceIds, title, body, tag){
     if(!deviceIds || deviceIds.length === 0) return;
-    try{
-      fetch('/api/push/send', { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ deviceIds: deviceIds, title: title, body: body, tag: tag || 'rr' }) }).catch(function(){});
-    }catch(e){}
+    for(var i = 0; i < deviceIds.length; i += 100){
+      try{
+        fetch('/api/push/send', { method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ deviceIds: deviceIds.slice(i, i + 100), title: title, body: body, tag: tag || 'rr' }) }).catch(function(){});
+      }catch(e){}
+    }
   }
 
   // Picks a power-up that makes sense for where the team currently sits, then fires it.
@@ -972,6 +1076,7 @@
 
   async function autoThrowPowerupInner(){
     if(!state.team) return false;
+    var tlT = timeLeftSec(); if(tlT !== null && tlT <= 0) return false;
     var mySlug = teamSlug(state.team);
     var lastThrow = await getLastThrowTime(mySlug);
     if(Date.now() - lastThrow < MIN_THROW_INTERVAL_MS) return false;
@@ -1008,12 +1113,15 @@
     var pushIds = [], pushTitle = '', pushBody = '', toastMsg = '';
 
     if(pick.type === 'rocket'){
-      try{ await window.storage.set(K('shortcut:'+mySlug), JSON.stringify({ issuedAt: now, fromTeam: state.team }), true); }catch(e){ console.error(e); return false; }
-      state.lastShortcutSeen = now;
+      // The current runner may already be past the turn-off, so the shortcut is saved for the NEXT runner.
+      var rl = powerup.label;
+      var nextName = nextRunnerNameFor(myTd);
+      try{ await window.storage.set(K('shortcut:'+mySlug), JSON.stringify({ issuedAt: now, fromTeam: state.team, state: 'pending' }), true); }catch(e){ console.error(e); return false; }
+      state.lastShortcutSeen = now + ':pending';
       pushIds = teamMemberIds(mySlug);
-      pushTitle = '\uD83D\uDE80 Rocket!';
-      pushBody = 'Your runner takes the half-lap shortcut this lap.';
-      toastMsg = 'Rocket fired \u2014 your runner takes the shortcut!';
+      pushTitle = '\uD83D\uDE80 ' + rl + ' loaded!';
+      pushBody = nextName + ' takes the half-lap shortcut on the next lap.';
+      toastMsg = rl + ' loaded \u2014 ' + nextName + ' takes the shortcut next lap!';
     } else {
       var targetSlug = pick.target;
       var targetName = state.teamData[targetSlug].name;
@@ -1028,7 +1136,7 @@
         var dest = (state.session && state.session.blueShellDest) || 'the tennis courts';
         ch = { powerupId:'blueshell', kind:'detour', exId:'detour', exName:'Run to '+dest, destination: dest, runnerId: runnerId, runnerName: runnerName,
                cat:'travel', pts:0, boostPct:0, reps:0, issuedAt: now, roster:[runnerId], doneBy:[], fromTeam: state.team, toTeam: targetName };
-        pushTitle = '\uD83D\uDD35 Blue Shell!';
+        pushTitle = '\uD83D\uDD35 ' + powerup.label + '!';
         pushBody = runnerName + ' must run to ' + dest + '.';
       } else {
         var burpee = null;
@@ -1038,7 +1146,7 @@
         ch = { powerupId: pick.type, kind:'burpees', exId: bx.id, exName: bx.name, cat: bx.cat, pts: bx.pts, boostPct: bx.boostPct||0, reps: reps,
                issuedAt: now, roster: teamMemberIds(targetSlug), doneBy:[], fromTeam: state.team, toTeam: targetName };
         pushTitle = powerup.label + ' incoming!';
-        pushBody = state.team + ' hit your team \u2014 everyone does ' + reps + ' burpees.';
+        pushBody = state.team + ' hit your team \u2014 everyone does ' + reps + ' \u00D7 ' + bx.name + '.';
       }
       try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
       pushIds = teamMemberIds(targetSlug);
@@ -1086,6 +1194,7 @@
     try{ var pcKeys = await window.storage.list(K('pcbonus:'), true); if(pcKeys && pcKeys.keys){ for(var k=0;k<pcKeys.keys.length;k++){ try{ await window.storage.delete(pcKeys.keys[k], true); }catch(e){} } } }catch(e){}
     try{ var meterKeys = await window.storage.list(K('meter:'), true); if(meterKeys && meterKeys.keys){ for(var m=0;m<meterKeys.keys.length;m++){ try{ await window.storage.delete(meterKeys.keys[m], true); }catch(e){} } } }catch(e){}
     try{ var scKeys = await window.storage.list(K('shortcut:'), true); if(scKeys && scKeys.keys){ for(var q=0;q<scKeys.keys.length;q++){ try{ await window.storage.delete(scKeys.keys[q], true); }catch(e){} } } }catch(e){}
+    try{ await window.storage.delete(K('endpush'), true); }catch(e){}
     try{ var throwKeys = await window.storage.list(K('lastthrow:'), true); if(throwKeys && throwKeys.keys){ for(var t=0;t<throwKeys.keys.length;t++){ try{ await window.storage.delete(throwKeys.keys[t], true); }catch(e){} } } }catch(e){}
     try{ var lbKeys = await window.storage.list(K('leaderboard:'), true); if(lbKeys && lbKeys.keys){ for(var l=0;l<lbKeys.keys.length;l++){ try{ await window.storage.delete(lbKeys.keys[l], true); }catch(e){} } } }catch(e){}
     try{ await window.storage.delete(K('teams'), true); }catch(e){}
@@ -1166,14 +1275,17 @@
     var g = state.gameConfig;
     var html = '<button class="btn-ghost" id="backBtn">&larr; Back</button>';
     html += '<p class="eyebrow" style="margin-top:14px;">'+g.title+'</p><h1 class="title pixel" style="font-size:20px;">Who Are<br/>You?</h1><hr class="rule"/>';
-    html += '<button class="btn-primary big-choice" id="qBtn">I\'m The Q &mdash; Set Up A Game</button>';
+    if(isMobileDevice()){
+      html += '<button class="btn-ghost big-choice" disabled style="opacity:.55;">I\'m The Q &mdash; needs a computer</button>' +
+        '<div class="mission-sub" style="margin:-4px 0 14px 0;">The Q dashboard is built for a computer and a big screen, so it can\'t be opened on a phone or tablet. Open this site on your laptop to run the game.</div>';
+    } else {
+      html += '<button class="btn-primary big-choice" id="qBtn">I\'m The Q &mdash; Set Up A Game</button>';
+    }
     html += '<button class="btn-sky big-choice" id="paxBtn">I\'m PAX &mdash; Join With A Code</button>';
     app.innerHTML = html;
     document.getElementById('backBtn').onclick = function(){ state.screen='detail'; render(); };
-    document.getElementById('qBtn').onclick = function(){
-      startQSetup();
-      render();
-    };
+    var qBtnEl = document.getElementById('qBtn');
+    if(qBtnEl){ qBtnEl.onclick = function(){ startQSetup(); render(); }; }
     document.getElementById('paxBtn').onclick = function(){
       state.isQ = false; state.codeError = null;
       state.screen = 'paxcode';
@@ -1186,14 +1298,54 @@
     state.qDraft = {
       minutes: DEFAULT_MINUTES, numPax: 10, numTeams: 2,
       exercises: MASTER_EXERCISES.map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, reps:e.reps, included:true}; }),
-      extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100, blueShellDest: 'the tennis courts'
+      extremeEnabled: true, extremeName: 'Run To The Top Of The Hill', extremePts: 60, extremeBoost: 100, blueShellDest: 'the tennis courts',
+      teamNames: TEAM_PALETTE_INFO.map(function(p){ return 'TEAM ' + p.word; }),
+      powerups: (function(){ var o = {}; POWERUP_TYPES.forEach(function(p){ o[p.id] = { label: p.label, reps: p.attackReps }; }); return o; })()
     };
     state.screen = 'qsetup';
   }
 
   // ---------- Q SETUP ----------
+  // Pulls whatever is currently typed in the name boxes into the draft (so nothing is lost on a re-draw or Create).
+  function syncNamesFromDom(d){
+    if(!d) return;
+    app.querySelectorAll('[data-qname]').forEach(function(el){
+      var id = el.getAttribute('data-qname'); var nm = cleanName(el.value, 30);
+      if(nm){ d.exercises.forEach(function(e){ if(e.id === id) e.name = nm; }); }
+    });
+    app.querySelectorAll('[data-qteam]').forEach(function(el){
+      var i = parseInt(el.getAttribute('data-qteam'), 10); var nm = cleanName(el.value, 20).toUpperCase();
+      if(nm){ d.teamNames[i] = nm; }
+    });
+    app.querySelectorAll('[data-qpuname]').forEach(function(el){
+      var id = el.getAttribute('data-qpuname'); var nm = cleanName(el.value, 20);
+      if(nm && d.powerups[id]){ d.powerups[id].label = nm; }
+    });
+  }
+  function teamNameInputsHtml(d){
+    var h = '';
+    for(var i = 0; i < d.numTeams; i++){
+      var st = TEAM_PALETTE_INFO[i % TEAM_PALETTE_INFO.length];
+      var nm = d.teamNames[i] || ('TEAM ' + st.word);
+      h += '<div class="row" style="align-items:center; margin-bottom:8px;"><div style="flex:0 0 38px; font-size:22px; text-align:center;">' + st.emoji + '</div>' +
+        '<input type="text" maxlength="20" data-qteam="' + i + '" value="' + escAttr(nm) + '" /></div>';
+    }
+    return h;
+  }
+  function wireTeamNameInputs(d){
+    app.querySelectorAll('[data-qteam]').forEach(function(el){
+      el.onchange = function(){
+        var i = parseInt(el.getAttribute('data-qteam'), 10);
+        var nm = cleanName(el.value, 20).toUpperCase();
+        d.teamNames[i] = nm || ('TEAM ' + TEAM_PALETTE_INFO[i % TEAM_PALETTE_INFO.length].word);
+        el.value = d.teamNames[i];
+      };
+    });
+  }
+
   function renderQSetup(){
     var d = state.qDraft;
+    syncNamesFromDom(d);
     var strength = d.exercises.filter(function(e){ return e.cat==='strength'; });
     var travel = d.exercises.filter(function(e){ return e.cat==='travel'; });
 
@@ -1202,7 +1354,7 @@
       list.forEach(function(e){
         h += '<div class="ex-setup-card"><div class="ex-setup-head">' +
           '<input type="checkbox" data-qpick="'+e.id+'" '+(e.included?'checked':'')+' />' +
-          '<span class="ex-setup-name">'+e.name+'</span></div>';
+          '<input type="text" class="ex-name-input" maxlength="30" data-qname="'+e.id+'" value="'+escAttr(e.name)+'" /></div>';
         if(e.cat === 'strength'){
           h += '<div style="margin-bottom:10px;"><span class="ex-mini-label" style="text-align:left;">Reps (Easy tier &mdash; Medium and Hard scale up automatically)</span>' +
             '<div class="reps-stepper">' +
@@ -1245,18 +1397,63 @@
     '</div></div></div>';
 
     html += '<div class="setup-section"><div class="shell-panel" style="border-color:#3ea6ff;">' +
-      '<span class="shell-eyebrow" style="color:#3ea6ff;">\uD83D\uDD35 Blue Shell detour</span>' +
-      '<div class="mission-sub" style="margin:6px 0 10px 0;">When a Blue Shell hits the 1st place team, their current runner must run to this spot before continuing.</div>' +
+      '<span class="shell-eyebrow" style="color:#3ea6ff;">\uD83D\uDD35 '+escAttr(d.powerups.blueshell.label)+' detour</span>' +
+      '<div class="mission-sub" style="margin:6px 0 10px 0;">When the '+escAttr(d.powerups.blueshell.label)+' hits the 1st place team, their current runner must run to this spot before continuing.</div>' +
       '<input id="qBlueDest" type="text" maxlength="40" value="'+d.blueShellDest+'" /></div></div>';
 
-    html += '<div style="height:14px;"></div><button class="btn-primary" id="createGameBtn" style="width:100%;">Create Game &amp; Get Code</button>';
+    html += '<div class="setup-section"><div class="card"><div class="setup-label" style="margin-bottom:6px;">Team names</div>' +
+      '<div class="mission-sub" style="margin:0 0 10px 0;">One per team &mdash; rename them anything you like. Each team keeps its own color and icon.</div>' +
+      '<div id="qTeamNames">' + teamNameInputsHtml(d) + '</div></div></div>';
+
+    html += '<div class="setup-section"><div class="card"><div class="setup-label" style="margin-bottom:6px;">Power-up names</div>' +
+      '<div class="mission-sub" style="margin:0 0 10px 0;">Rename them anything you like. Banana and the two shells are the burpee hits &mdash; set how many burpees each one costs.</div>';
+    POWERUP_TYPES.forEach(function(pu){
+      var cfg = d.powerups[pu.id];
+      html += '<div class="row" style="align-items:center; margin-bottom:8px;"><div style="flex:0 0 48px;">' + powerupIconSVG(pu.id, 40) + '</div>' +
+        '<input type="text" maxlength="20" data-qpuname="' + pu.id + '" value="' + escAttr(cfg.label) + '" />';
+      if(pu.attackReps){
+        html += '<div style="flex:0 0 84px;"><span class="ex-mini-label">Burpees</span><input type="number" min="1" max="30" data-qpureps="' + pu.id + '" value="' + cfg.reps + '" /></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+
+    html += '<div style="height:14px;"></div><button class="btn-primary" id="createGameBtn\" style="width:100%;">Create Game &amp; Get Code</button>';
     html += '</div>';
 
     app.innerHTML = html;
     document.getElementById('backBtn').onclick = function(){ state.screen='gate'; render(); };
     document.getElementById('qMinutes').onchange = function(){ d.minutes = parseFloat(this.value)||DEFAULT_MINUTES; };
     document.getElementById('qNumPax').onchange = function(){ d.numPax = parseInt(this.value,10)||1; };
-    document.getElementById('qNumTeams').onchange = function(){ d.numTeams = parseInt(this.value,10)||2; };
+    document.getElementById('qNumTeams').onchange = function(){
+      d.numTeams = Math.max(2, Math.min(12, parseInt(this.value, 10) || 2));
+      for(var i = 0; i < d.numTeams; i++){ if(!d.teamNames[i]){ d.teamNames[i] = 'TEAM ' + TEAM_PALETTE_INFO[i % TEAM_PALETTE_INFO.length].word; } }
+      syncNamesFromDom(d);
+      document.getElementById('qTeamNames').innerHTML = teamNameInputsHtml(d);
+      wireTeamNameInputs(d);
+    };
+    wireTeamNameInputs(d);
+    app.querySelectorAll('[data-qname]').forEach(function(el){
+      el.onchange = function(){
+        var id = el.getAttribute('data-qname'); var nm = cleanName(el.value, 30);
+        d.exercises.forEach(function(e){ if(e.id === id){ if(nm){ e.name = nm; } else { el.value = e.name; } } });
+      };
+    });
+    app.querySelectorAll('[data-qpuname]').forEach(function(el){
+      el.onchange = function(){
+        var id = el.getAttribute('data-qpuname'); var nm = cleanName(el.value, 20);
+        var def = POWERUP_TYPES.filter(function(x){ return x.id === id; })[0];
+        d.powerups[id].label = nm || def.label; el.value = d.powerups[id].label;
+      };
+    });
+    app.querySelectorAll('[data-qpureps]').forEach(function(el){
+      el.onchange = function(){
+        var id = el.getAttribute('data-qpureps');
+        var n = parseInt(el.value, 10);
+        var def = POWERUP_TYPES.filter(function(x){ return x.id === id; })[0];
+        d.powerups[id].reps = (n >= 1 && n <= 30) ? n : def.attackReps; el.value = d.powerups[id].reps;
+      };
+    });
     app.querySelectorAll('[data-qpick]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qpick')) e.included = el.checked; }); }; });
     app.querySelectorAll('[data-qreps]').forEach(function(el){ el.onchange = function(){ d.exercises.forEach(function(e){ if(e.id===el.getAttribute('data-qreps')) e.reps = parseInt(el.value,10)||1; }); }; });
     app.querySelectorAll('[data-repsminus]').forEach(function(el){
@@ -1291,11 +1488,18 @@
     document.getElementById('qExtremePts').onchange = function(){ d.extremePts = parseFloat(this.value) || 1; };
     document.getElementById('qExtremeBoost').onchange = function(){ d.extremeBoost = parseFloat(this.value) || 0; };
     document.getElementById('createGameBtn').onclick = async function(){
+      syncNamesFromDom(d);
       var chosen = d.exercises.filter(function(e){ return e.included; }).map(function(e){ return {id:e.id, name:e.name, cat:e.cat, goal:e.goal, pts:e.pts, boostPct:e.boostPct, reps:e.reps}; });
       if(d.extremeEnabled && d.extremeName.trim()){
         chosen.push({ id:'extreme', name:d.extremeName.trim(), cat:'travel', goal:1, pts:d.extremePts, boostPct:d.extremeBoost });
       }
       if(chosen.length === 0){ alert('Pick at least one exercise or travel.'); return; }
+      var teamNames = d.teamNames.slice(0, d.numTeams);
+      var teamSlugs = teamNames.map(teamSlug);
+      var badNames = teamSlugs.some(function(sl){ return !sl; }) || teamSlugs.some(function(sl, i){ return teamSlugs.indexOf(sl) !== i; });
+      if(badNames){ alert('Each team needs its own name, made of letters or numbers.'); return; }
+      var teamStyles = {};
+      teamNames.forEach(function(nm, i){ var st = TEAM_PALETTE_INFO[i % TEAM_PALETTE_INFO.length]; teamStyles[nm.toUpperCase()] = { color: st.color, emoji: st.emoji }; });
       var code = genCode();
       for(var attempt=0; attempt<6; attempt++){
         var exists = null;
@@ -1305,11 +1509,11 @@
       }
       var blueDestEl = document.getElementById('qBlueDest');
       if(blueDestEl && blueDestEl.value.trim()){ d.blueShellDest = blueDestEl.value.trim().slice(0,40); }
-      var sess = { durationSec: d.minutes*60, startTime: null, exercises: chosen, numTeams: d.numTeams, numPax: d.numPax, blueShellDest: d.blueShellDest };
+      var sess = { durationSec: d.minutes*60, startTime: null, exercises: chosen, numTeams: d.numTeams, numPax: d.numPax, blueShellDest: d.blueShellDest, teamNames: teamNames, teamStyles: teamStyles, powerups: d.powerups };
       try{ await window.storage.set(codeKey(code,'session'), JSON.stringify(sess), true); }
       catch(e){
         console.error('create game failed', e);
-        alert('Could not create the game.\n\nError detail: ' + (e && e.message ? e.message : String(e)) + '\n\nThis usually means the storage feature isn\'t available in this view. Make sure you\'re opening this inside the Claude chat/artifact panel (not a downloaded file opened directly in a browser).');
+        alert('Could not create the game.\n\nError detail: ' + (e && e.message ? e.message : String(e)) + '\n\nCheck your internet connection and try again.');
         return;
       }
       state.code = code; state.session = sess; state.teamsInfo = null; state.leaderboard = [];
@@ -1383,62 +1587,201 @@
   }
 
   // ---------- Q dashboard ----------
+  // ---------- bar charts ----------
+  function barRow(label, pct, color, valueText){
+    pct = Math.max(0, Math.min(100, pct));
+    return '<div class="bar-row"><div class="bar-label">' + label + '</div><div class="bar-trk"><div class="bar-fil" style="width:' + pct.toFixed(1) + '%; background:' + color + ';"></div></div><div class="bar-val">' + valueText + '</div></div>';
+  }
+
+  // One card per team: laps, power meter and power-up points, all as bars.
+  function renderTeamProgress(){
+    var slugs = Object.keys(state.teamData);
+    if(slugs.length === 0) return '';
+    var ptsBySlug = {};
+    pitStandings().forEach(function(t){ ptsBySlug[teamSlug(t.name)] = t.score; });
+    var lapsBySlug = {}, maxLaps = 1, maxPts = 1;
+    slugs.forEach(function(sl){
+      lapsBySlug[sl] = lapInfoFor(sl).total;
+      maxLaps = Math.max(maxLaps, lapsBySlug[sl]);
+      maxPts = Math.max(maxPts, ptsBySlug[sl] || 0);
+    });
+    var order = lapStandings().map(function(t){ return teamSlug(t.name); }).filter(function(sl){ return !!state.teamData[sl]; });
+    var html = '<div class="setup-label" style="margin-bottom:10px;">Team Progress</div>';
+    order.forEach(function(sl){
+      var td = state.teamData[sl];
+      var fl = teamFlair(td.name);
+      var meter = td.meter || 0;
+      var pts = ptsBySlug[sl] || 0;
+      html += '<div class="prog-card" style="border-color:' + fl.color + ';"><div class="prog-name" style="color:' + fl.color + ';">' + fl.emoji + ' ' + td.name + '</div>' +
+        barRow('Laps', lapsBySlug[sl] / maxLaps * 100, fl.color, lapsBySlug[sl].toFixed(2)) +
+        barRow('Power', meter, '#ff5252', Math.round(meter) + '%') +
+        barRow('Points', pts / maxPts * 100, '#ffc93c', fmtPts(pts)) + '</div>';
+    });
+    return html;
+  }
+
+  function rankBars(items, fmt){
+    var max = 1;
+    items.forEach(function(t){ max = Math.max(max, t.value); });
+    var h = '';
+    items.forEach(function(t, i){
+      var fl = teamFlair(t.name);
+      h += '<div class="rank-row"><div class="rank-head"><span class="rank-medal">' + podiumTag(i) + '#' + (i + 1) + '</span>' +
+        '<span class="rank-name" style="color:' + fl.color + ';">' + fl.emoji + ' ' + t.name + '</span><span class="rank-val">' + fmt(t.value) + '</span></div>' +
+        '<div class="bar-trk"><div class="bar-fil" style="width:' + Math.max(0, Math.min(100, t.value / max * 100)).toFixed(1) + '%; background:' + fl.color + ';"></div></div></div>';
+    });
+    return h || '<div class="empty">No teams.</div>';
+  }
+
+  // Final results for both ways of scoring: laps and power-up (pit crew) points.
+  function finalStandingsHtml(wide){
+    var laps = lapStandings().map(function(t){ return { name: t.name, value: t.laps }; });
+    var pits = pitStandings().map(function(t){ return { name: t.name, value: t.score }; });
+    var html = '';
+    if(laps[0] && laps[0].value > 0){
+      html += '<div class="winner-banner' + (wide ? ' wide' : '') + '">\uD83C\uDFC6 Laps champion: ' + teamFlair(laps[0].name).emoji + ' ' + laps[0].name + ' &mdash; ' + laps[0].value.toFixed(2) + ' laps</div>';
+    }
+    if(pits[0] && pits[0].value > 0){
+      html += '<div class="winner-banner' + (wide ? ' wide' : '') + '" style="border-color:var(--violet);">\uD83D\uDD27 Power-up points champion: ' + teamFlair(pits[0].name).emoji + ' ' + pits[0].name + ' &mdash; ' + fmtPts(pits[0].value) + ' pts</div>';
+    }
+    html += '<div class="final-grid' + (wide ? ' wide' : '') + '">' +
+      '<div class="card"><div class="setup-label" style="margin-bottom:12px;">\uD83C\uDFC1 Final Laps</div>' + rankBars(laps, function(v){ return v.toFixed(2) + ' laps'; }) + '</div>' +
+      '<div class="card"><div class="setup-label" style="margin-bottom:12px;">\uD83D\uDD27 Final Power-Up Points</div>' + rankBars(pits, function(v){ return fmtPts(v) + ' pts'; }) + '</div></div>';
+    return html;
+  }
+
+  function renderFinalPax(){
+    var html = '<div class="final-title">\uD83C\uDFC1 GAME OVER \uD83C\uDFC1</div>';
+    var standings = lapStandings();
+    var myRank = -1;
+    standings.forEach(function(t, i){ if(state.team && teamSlug(t.name) === teamSlug(state.team)){ myRank = i; } });
+    if(myRank >= 0){ html += '<div class="winner-banner">Your team finished #' + (myRank + 1) + ' of ' + standings.length + ' on laps</div>'; }
+    html += finalStandingsHtml(false);
+    html += '<hr class="rule"/><button class="btn-ghost" id="hubBtn">&larr; All Games</button>';
+    app.innerHTML = html;
+    wireCommonNav();
+  }
+
+  // ---------- the end of the game: flash, siren, vibration, alert ----------
+  var END_FLASH_MS = 10000;
+  function showEndFlash(ms){
+    var old = document.getElementById('endFlash');
+    if(old && old.parentNode){ old.parentNode.removeChild(old); }
+    var el = document.createElement('div');
+    el.id = 'endFlash'; el.className = 'end-flash';
+    el.innerHTML = '<div class="end-flash-text">TIME\'S UP!</div><div class="end-flash-sub">GAME OVER</div>';
+    document.body.appendChild(el);
+    setTimeout(function(){
+      el.className = 'end-flash fade';
+      setTimeout(function(){ if(el.parentNode){ el.parentNode.removeChild(el); } }, 700);
+    }, Math.max(500, ms));
+  }
+  function playEndAlarm(){
+    if(!audioCtx){ unlockAudio(); }
+    if(!audioCtx) return;
+    try{
+      if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
+      var now = audioCtx.currentTime, dur = 7;
+      var osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(650, now);
+      for(var t = 0; t < dur; t += 0.6){
+        osc.frequency.linearRampToValueAtTime(1150, now + t + 0.3);
+        osc.frequency.linearRampToValueAtTime(650, now + t + 0.6);
+      }
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.4, now + 0.05);
+      gain.gain.setValueAtTime(0.4, now + dur - 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + dur + 0.05);
+    }catch(e){ console.error('end alarm failed', e); }
+  }
+  // Only the Q's computer sends this, once, so locked phones and watches hear about the finish too.
+  async function maybeSendEndPush(endAt){
+    var already = null;
+    try{ var r = await window.storage.get(K('endpush'), true); already = (r && r.value) ? r.value : null; }catch(e){ already = null; }
+    if(already === String(endAt)) return;
+    try{ await window.storage.set(K('endpush'), String(endAt), true); }catch(e){}
+    var ids = state.leaderboard.map(function(e){ return e._key.replace(K('leaderboard:'), ''); });
+    sendPush(ids, "\uD83C\uDFC1 TIME'S UP!", 'The game is over \u2014 check the final standings.', 'gameover');
+  }
+  function checkGameEnd(){
+    if(state.screen !== 'game' || !state.gameConfig || !state.gameConfig.hasRoles) return;
+    if(!(state.isQ || state.playerName) || !state.session || !state.session.startTime) return;
+    var endAt = state.session.startTime + state.session.durationSec * 1000;
+    var now = Date.now();
+    if(now < endAt || state.endHandledFor === endAt) return;
+    state.endHandledFor = endAt;
+    var since = now - endAt;
+    if(since < END_FLASH_MS){      // only announce a game that has JUST ended, not one you are opening afterwards
+      showEndFlash(END_FLASH_MS - since);
+      playEndAlarm();
+      try{ if(navigator.vibrate){ navigator.vibrate([600, 200, 600, 200, 600, 200, 900]); } }catch(e){}
+      if(state.isQ){ maybeSendEndPush(endAt); }
+    }
+  }
+
+  // ---------- Q dashboard: lobby before the game, big-screen view during, final standings after ----------
   function renderQDashboard(){
-    app.style.maxWidth = '900px';
+    app.style.maxWidth = '1800px';
     var started = state.session && state.session.startTime;
     var left = timeLeftSec();
     var timeUp = started && left <= 0;
     var joined = state.leaderboard.filter(function(e){ return e.mode === 'random'; });
+    var html = '';
 
-    var html = '<div class="checkered-strip"></div>';
-    html += '<p class="eyebrow">You Are The Q</p><h1 class="title pixel" style="font-size:18px;">Game<br/>Dashboard</h1>';
-    html += '<div class="code-display">'+state.code+'</div>';
-    html += '<div class="empty" style="margin-bottom:14px;">Hand this code to your PAX</div>';
-    html += '<div class="checkered-strip"></div>';
-
-    if(started){
-      html += '<div class="stat-box'+(left<=60 && !timeUp?' urgent':'')+'" style="margin-bottom:16px;"><div class="stat-label">Time Left</div><div class="stat-value">'+fmtTime(left)+'</div></div>';
-      if(timeUp){ html += '<div class="banner timeup">Time\'s up &mdash; final standings locked in</div>'; }
+    if(started && timeUp){
+      html += '<div class="checkered-strip"></div>';
+      html += '<div class="final-title">\uD83C\uDFC1 FINAL STANDINGS \uD83C\uDFC1</div>';
+      html += finalStandingsHtml(true);
+      html += '<div class="checkered-strip"></div>';
+    } else if(started){
       var leaderNow = lapStandings()[0];
+      html += '<div class="checkered-strip"></div>';
+      html += '<div class="q-topline"><div class="q-code-small">CODE ' + state.code + '</div>';
       if(leaderNow && leaderNow.laps > 0){
-        var leadFlair = teamFlair(leaderNow.name);
-        html += '<div class="trophy-banner">\uD83C\uDFC6 In The Lead: '+leadFlair.emoji+' '+leaderNow.name+'</div>';
+        html += '<div class="trophy-banner" style="margin:0;">\uD83C\uDFC6 In The Lead: ' + teamFlair(leaderNow.name).emoji + ' ' + leaderNow.name + '</div>';
       }
-      html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">The Track</div>' + renderTrackView() + '</div>';
-      html += renderWhoGotHit();
-      html += renderTeamMetersBig();
-    }
-
-    html += '<div class="card" style="margin-bottom:16px;">';
-    html += '<div class="setup-label" style="margin-bottom:8px;">PAX joined: '+joined.length+' / '+state.session.numPax+'</div>';
-    html += '<div class="lobby-list">';
-    if(joined.length===0){ html += '<span class="empty">No one has joined yet.</span>'; }
-    joined.forEach(function(p){
-      var pf = p.team ? teamFlair(p.team) : null;
-      html += '<span class="lobby-chip">'+(pf?pf.emoji+' ':'')+p.name+(p.team?' &middot; '+p.team:'')+'</span>';
-    });
-    html += '</div>';
-
-    if(!state.teamsInfo){
-      html += '<div style="height:10px;"></div><button class="btn-violet" id="shuffleBtn" style="width:100%;">Shuffle Into '+state.session.numTeams+' Teams &amp; Set Run Order</button>';
-    } else if(!started){
-      html += '<div style="height:10px;"></div><div class="setup-label" style="margin-bottom:6px;">Teams and run order are set. Ready to start?</div>';
-      html += '<button class="btn-primary" id="startBtn" style="width:100%;">Start Game Now</button>';
-    }
-    html += '</div>';
-
-    if(state.teamsInfo){
-      html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Run Orders</div>';
-      Object.keys(state.teamData).forEach(function(slug){
-        html += '<div class="setup-label" style="color:var(--sky); margin:10px 0 4px 0;">'+state.teamData[slug].name+'</div>';
-        html += renderRunOrder(slug);
+      html += '</div>';
+      html += '<div class="q-timer-wrap"><div class="q-timer-label">Time Left</div><div class="q-timer' + (left <= 60 ? ' urgent' : '') + '">' + fmtTime(left) + '</div></div>';
+      html += '<div class="q-grid"><div><div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">The Track</div>' + renderTrackView() + '</div>' + renderWhoGotHit() + '</div>';
+      html += '<div>' + renderTeamProgress() + '</div></div>';
+    } else {
+      html += '<div style="max-width:900px; margin:0 auto;">';
+      html += '<div class="checkered-strip"></div>';
+      html += '<p class="eyebrow">You Are The Q</p><h1 class="title pixel" style="font-size:18px;">Game<br/>Dashboard</h1>';
+      html += '<div class="code-display">' + state.code + '</div>';
+      html += '<div class="empty" style="margin-bottom:14px;">Hand this code to your PAX</div>';
+      html += '<div class="checkered-strip"></div>';
+      html += '<div class="card" style="margin-bottom:16px;">';
+      html += '<div class="setup-label" style="margin-bottom:8px;">PAX joined: ' + joined.length + ' / ' + state.session.numPax + '</div>';
+      html += '<div class="lobby-list">';
+      if(joined.length === 0){ html += '<span class="empty">No one has joined yet.</span>'; }
+      joined.forEach(function(p){
+        var pf = p.team ? teamFlair(p.team) : null;
+        html += '<span class="lobby-chip">' + (pf ? pf.emoji + ' ' : '') + p.name + (p.team ? ' &middot; ' + p.team : '') + '</span>';
       });
+      html += '</div>';
+      if(!state.teamsInfo){
+        html += '<div style="height:10px;"></div><button class="btn-violet" id="shuffleBtn" style="width:100%;">Shuffle Into ' + state.session.numTeams + ' Teams &amp; Set Run Order</button>';
+      } else {
+        html += '<div style="height:10px;"></div><div class="setup-label" style="margin-bottom:6px;">Teams and run order are set. Ready to start?</div>';
+        html += '<button class="btn-primary" id="startBtn" style="width:100%;">Start Game Now</button>';
+      }
+      html += '</div>';
+      if(state.teamsInfo){
+        html += '<div class="card" style="margin-bottom:16px;"><div class="setup-label" style="margin-bottom:10px;">Run Orders</div>';
+        Object.keys(state.teamData).forEach(function(slug){
+          html += '<div class="setup-label" style="color:var(--sky); margin:10px 0 4px 0;">' + state.teamData[slug].name + '</div>';
+          html += renderRunOrder(slug);
+        });
+        html += '</div>';
+      }
       html += '</div>';
     }
 
-    if(started){ html += renderStandings(); }
-
-    html += '<div class="footer-row"><button class="btn-danger" id="resetBtn">Reset This Round (Same Code)</button>';
+    html += '<div class="footer-row" style="margin-top:18px;"><button class="btn-danger" id="resetBtn">Reset This Round (Same Code)</button>';
     html += '<button class="btn-ghost btn-small" id="endBtn">End &amp; Back To Games</button></div>';
 
     app.innerHTML = html;
@@ -1447,6 +1790,7 @@
     var startBtn = document.getElementById('startBtn');
     if(startBtn){
       startBtn.onclick = async function(){
+        unlockAudio();
         var sess = JSON.parse(JSON.stringify(state.session));
         sess.startTime = Date.now();
         try{ await window.storage.set(K('session'), JSON.stringify(sess), true); state.session = sess; await refreshTeamsData(); render(); }
@@ -1753,16 +2097,27 @@
     }
 
     if(!iAmRacer && myTeamData && myTeamData.shortcut){
-      html += '<div class="banner boost">\uD83D\uDE80 Rocket active &mdash; your runner takes the half-lap shortcut</div>';
+      var rockL = powerupById('rocket').label;
+      if((myTeamData.shortcut.state || 'active') === 'pending'){
+        var nextId = (myTeamData.racer && myTeamData.racer.order && myTeamData.racer.order.length) ? myTeamData.racer.order[nextRunnerIndex(myTeamData.racer)] : null;
+        html += '<div class="banner boost">\uD83D\uDE80 '+rockL+' loaded &mdash; '+(nextId === state.devicePlayerId ? 'YOU take' : nextRunnerNameFor(myTeamData)+' takes')+' the half-lap shortcut on the next lap</div>';
+      } else {
+        html += '<div class="banner boost">\uD83D\uDE80 '+rockL+' active &mdash; your runner takes the half-lap shortcut</div>';
+      }
     }
 
     // ---- MAIN ACTION: the thing PAX actually need to see and press ----
     if(iAmRacer){
       html += '<div class="banner won">You\'re up! Run your lap, then tap below to hand off.</div>';
       if(myTeamData && myTeamData.shortcut){
-        html += '<div class="shell-panel" style="border-color:#e8e8f0;"><div class="challenge-icon-wrap">'+powerupIconSVG('rocket', 72)+'</div>' +
-          '<div class="challenge-label" style="color:#e8e8f0;">Rocket Shortcut!</div>' +
-          '<div class="challenge-exercise-huge" style="font-size:26px;">Take the half-lap shortcut this lap</div></div>';
+        var rockLbl = powerupById('rocket').label;
+        if((myTeamData.shortcut.state || 'active') !== 'pending'){
+          html += '<div class="shell-panel" style="border-color:#e8e8f0;"><div class="challenge-icon-wrap">'+powerupIconSVG('rocket', 72)+'</div>' +
+            '<div class="challenge-label" style="color:#e8e8f0;">'+rockLbl+' Shortcut!</div>' +
+            '<div class="challenge-exercise-huge" style="font-size:26px;">Take the half-lap shortcut this lap</div></div>';
+        } else {
+          html += '<div class="banner boost">\uD83D\uDE80 '+rockLbl+' loaded &mdash; '+nextRunnerNameFor(myTeamData)+' gets the half-lap shortcut on the next lap</div>';
+        }
       }
       html += '<button class="lap-btn" id="lapBtn" '+(timeUp?'disabled':'')+'>&#127937; LAP COMPLETE</button>';
       if(!timeUp){ html += '<button class="btn-ghost" id="skipBtn" style="width:100%; margin-bottom:16px;">Skip my turn (injury)</button>'; }
@@ -1842,6 +2197,7 @@
     if(g.hasGameCode){
       if(state.isQ){ renderQDashboard(); return; }
       if(!state.playerName){ renderPaxJoin(); return; }
+      if(state.session && state.session.startTime && timeLeftSec() <= 0){ renderFinalPax(); return; }
       if(!state.team){ renderPaxWaiting('Waiting for the Q to shuffle teams...'); return; }
       if(!(state.session && state.session.startTime)){ renderPaxWaiting('Waiting for the Q to start the game...'); return; }
       renderGameMarioKart();
@@ -1908,6 +2264,7 @@
       asQ = !!raw;
     }
     if(!raw || !raw.code || !raw.gameId || !GAMES[raw.gameId]) return false;
+    if(asQ && isMobileDevice()) return false;
     if(!asQ && !state.devicePlayerId) return false;   // players need their device ID; the Q never has one
     if(Date.now() - (raw.savedAt || 0) > 6*3600*1000){ clearResume(); return false; }
     if(urlCode && urlCode !== raw.code) return false;
@@ -1960,7 +2317,7 @@
     } else if(setupGame && GAMES[setupGame] && GAMES[setupGame].hasGameCode){
       state.gameId = setupGame;
       state.gameConfig = GAMES[setupGame];
-      startQSetup();
+      if(isMobileDevice()){ state.screen = 'gate'; } else { startQSetup(); }
     } else if(joinGame && GAMES[joinGame] && GAMES[joinGame].hasGameCode){
       state.gameId = joinGame;
       state.gameConfig = GAMES[joinGame];
@@ -1985,9 +2342,15 @@
             if(!state.isQ){
               await refreshMyChallenge(); await tryFireBankedPowerup(); await refreshTeamsData();
               var myTd = state.team ? state.teamData[teamSlug(state.team)] : null;
-              if(myTd && myTd.shortcut && myTd.shortcut.issuedAt !== state.lastShortcutSeen){
-                state.lastShortcutSeen = myTd.shortcut.issuedAt;
-                notifyPowerupHit('Rocket! Your runner takes the half-lap shortcut.');
+              if(myTd && myTd.shortcut){
+                var scState = myTd.shortcut.state || 'active';
+                var scKey = myTd.shortcut.issuedAt + ':' + scState;
+                if(scKey !== state.lastShortcutSeen){
+                  state.lastShortcutSeen = scKey;
+                  var rockName = powerupById('rocket').label;
+                  if(scState === 'pending'){ notifyPowerupHit(rockName + ' loaded! ' + nextRunnerNameFor(myTd) + ' takes the half-lap shortcut next lap.'); }
+                  else if(isActiveRacer()){ notifyPowerupHit(rockName + '! Take the half-lap shortcut this lap.'); }
+                }
               }
             }
           }
@@ -1997,7 +2360,7 @@
     }, 4000);
 
     setInterval(function(){
-      if(state.screen === 'game' && (state.isQ || state.playerName) && state.session && state.session.startTime){ render(); }
+      if(state.screen === 'game' && (state.isQ || state.playerName) && state.session && state.session.startTime){ checkGameEnd(); render(); }
     }, 1000);
   }
 
