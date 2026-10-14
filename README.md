@@ -102,6 +102,30 @@ git push
 
 Azure will automatically rebuild and redeploy within a minute or two.
 
+## Built for a big group (27+ players)
+
+How the app keeps up with a full group:
+
+- **One request, not dozens.** Each phone asks the server for the whole game in a single request
+  (`/api/snapshot`) about every 2 seconds. If nothing changed, the reply is tiny. Updates never
+  overlap, slow down automatically if the server is struggling, and are spread out a little so a room
+  of phones doesn't ask in the same instant. A phone makes about 0.4 requests a second (it used to
+  make about 20).
+- **No lost taps.** When several teammates finish an exercise or tap "I'm done" at the same moment,
+  every one is counted (shared values use conditional writes with automatic retry), power-ups can't
+  fire twice, and a lap can't be counted twice.
+- **One clock.** All game time (the countdown, laps, the final whistle) uses the server's clock, so
+  phones with the wrong time still agree.
+- **Survives a restart.** The server saves the game to disk every 2 seconds (`/home/rr-data` on Azure,
+  `.data/` on your own computer) and reloads it when it starts. Old games are cleaned up after 24 hours.
+  If the folder can't be written, it keeps running in memory and logs one warning.
+- **Watching it live.** Open `/api/stats` on your site to see request counts and how many games and
+  keys the server holds.
+- **The big screen fits up to about 6 teams** on a 1080p projector (two columns of team cards).
+
+Tips for game night: don't push a new version while a game is running (Azure restarts the app when it
+deploys), and keep "Always On" switched on for the App Service so it doesn't go to sleep.
+
 ## Modifying a run (injuries) when teams are picked
 
 When players join, they're asked "Need to modify your run?" (they can change their answer on the

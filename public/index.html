@@ -155,6 +155,15 @@
   @media (min-width:1100px){ .q-grid{grid-template-columns:1.3fr 1fr;} }
   .prog-card{background:var(--panel); border:2px solid var(--line); border-radius:6px; padding:14px 16px; margin-bottom:12px;}
   .prog-name{font-weight:700; text-transform:uppercase; font-size:clamp(14px,1.8vw,30px); margin-bottom:6px;}
+  .prog-grid{display:grid; grid-template-columns:1fr; gap:12px;}
+  .prog-grid .prog-card{margin-bottom:0;}
+  .prog-grid.two{grid-template-columns:1fr 1fr;}
+  .prog-grid.two .prog-card{padding:10px 12px;}
+  .prog-grid.two .prog-name{font-size:clamp(13px,1.35vw,25px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;}
+  .prog-grid.two .bar-row{margin:5px 0; gap:8px;}
+  .prog-grid.two .bar-label{flex-basis:clamp(48px,4.4vw,84px); font-size:clamp(10px,0.95vw,17px);}
+  .prog-grid.two .bar-val{flex-basis:clamp(46px,4.6vw,88px); font-size:clamp(9px,0.85vw,15px);}
+  .prog-grid.two .bar-trk{height:clamp(14px,1.6vw,28px);}
   .bar-row{display:flex; align-items:center; gap:12px; margin:8px 0;}
   .bar-label{flex:0 0 clamp(64px,7vw,130px); font-size:clamp(11px,1.2vw,20px); color:var(--muted); text-transform:uppercase; letter-spacing:1px;}
   .bar-trk{flex:1; height:clamp(18px,2.4vw,38px); background:#1c1a24; border-radius:6px; overflow:hidden;}
@@ -218,30 +227,63 @@
 // ---------- storage adapter: same interface as the Claude artifact's window.storage,
 // backed by our own tiny API (shared data) and localStorage (personal data) ----------
 (function(){
+  // Give every request a time limit, so one stuck connection can never freeze a phone.
+  function withTimeout(promise, ms){
+    return new Promise(function(resolve, reject){
+      var timer = setTimeout(function(){ reject(new Error('request timed out')); }, ms);
+      promise.then(function(v){ clearTimeout(timer); resolve(v); }, function(e){ clearTimeout(timer); reject(e); });
+    });
+  }
+  function call(url, opts){ return withTimeout(fetch(url, opts), 12000); }
+  // One retry after a dropped connection (only used for plain writes, which are safe to repeat).
+  async function callWrite(url, opts){
+    try{ return await call(url, opts); }
+    catch(e){ await new Promise(function(r){ setTimeout(r, 400); }); return await call(url, opts); }
+  }
+  var JSON_HEADERS = { 'Content-Type': 'application/json' };
+
   async function apiGet(key){
-    var res = await fetch('/api/kv/' + encodeURIComponent(key));
+    var res = await call('/api/kv/' + encodeURIComponent(key));
     if(res.status === 404) throw new Error('not found: ' + key);
     if(!res.ok) throw new Error('storage GET failed (' + res.status + ')');
     var data = await res.json();
-    return { key: key, value: data.value, shared: true };
+    return { key: key, value: data.value, version: data.version, shared: true };
   }
   async function apiSet(key, value){
-    var res = await fetch('/api/kv/' + encodeURIComponent(key), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: value })
-    });
+    var res = await callWrite('/api/kv/' + encodeURIComponent(key), { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ value: value }) });
     if(!res.ok) throw new Error('storage SET failed (' + res.status + ')');
     return { key: key, value: value, shared: true };
   }
+  // Conditional write: only succeeds if nobody changed the key since you read it (ifVersion 0 = it must not exist yet).
+  async function apiCas(key, value, ifVersion){
+    var res = await call('/api/kv/' + encodeURIComponent(key), { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ value: value, ifVersion: ifVersion }) });
+    if(res.status === 409){ var d = await res.json(); return { ok: false, conflict: true, value: d.value, version: d.version }; }
+    if(!res.ok) throw new Error('storage CAS failed (' + res.status + ')');
+    var data = await res.json();
+    return { ok: true, value: value, version: data.version };
+  }
   async function apiDelete(key){
-    var res = await fetch('/api/kv/' + encodeURIComponent(key), { method: 'DELETE' });
+    var res = await callWrite('/api/kv/' + encodeURIComponent(key), { method: 'DELETE' });
     if(!res.ok) throw new Error('storage DELETE failed (' + res.status + ')');
     return { key: key, deleted: true, shared: true };
   }
   async function apiList(prefix){
-    var res = await fetch('/api/kv-list?prefix=' + encodeURIComponent(prefix || ''));
+    var res = await call('/api/kv-list?prefix=' + encodeURIComponent(prefix || ''));
     if(!res.ok) throw new Error('storage LIST failed (' + res.status + ')');
     var data = await res.json();
     return { keys: data.keys, prefix: prefix, shared: true };
+  }
+  // The whole game in one request (a tiny reply if nothing changed since `since`).
+  async function apiSnapshot(prefix, since, epoch){
+    var url = '/api/snapshot?prefix=' + encodeURIComponent(prefix) + '&since=' + (since || 0) + '&epoch=' + encodeURIComponent(epoch || '');
+    var res = await call(url);
+    if(!res.ok) throw new Error('snapshot failed (' + res.status + ')');
+    return await res.json();
+  }
+  async function apiDeletePrefixes(prefixes){
+    var res = await callWrite('/api/kv-delete-prefix', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ prefixes: prefixes }) });
+    if(!res.ok) throw new Error('bulk delete failed (' + res.status + ')');
+    return await res.json();
   }
 
   window.storage = {
@@ -257,6 +299,7 @@
       if(!shared){ localStorage.setItem(key, value); return { key: key, value: value, shared: false }; }
       return apiSet(key, value);
     },
+    cas: apiCas,
     delete: async function(key, shared){
       if(!shared){ localStorage.removeItem(key); return { key: key, deleted: true, shared: false }; }
       return apiDelete(key);
@@ -268,7 +311,9 @@
         return { keys: keys, prefix: prefix, shared: false };
       }
       return apiList(prefix);
-    }
+    },
+    snapshot: apiSnapshot,
+    deletePrefixes: apiDeletePrefixes
   };
 })();
 </script>
@@ -369,10 +414,40 @@
     leaderboard:[], customExercises:[], teamData:{}, myChallenge:null,
     loading:true, toast:null,
     isQ:false, code:null, codeError:null, qDraft:null, prefillCode:null,
-    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null, skipRuns:false, lastShortcutSeen:null, pushStatus:null, endHandledFor:null
+    selectedPowerup:null, selectedDifficulty:null, assignedExercise:null, lastAssignedExId:null, skipRuns:false, lastShortcutSeen:null, pushStatus:null, endHandledFor:null,
+    clockOffset:0, clockSet:false, clockRtt:0, snapVersion:0, snapEpoch:null, snapPrefix:null, pollFailures:0, lastThrowBySlug:{}, renderedEndFor:null
   };
 
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+
+  // ---------- one shared clock, and shared updates that can't overwrite each other ----------
+  var ABORT = {};
+  function jparse(str){ try{ return JSON.parse(str); }catch(e){ return null; } }
+  function delay(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+  // Game time always comes from the SERVER's clock, so phones whose own clocks are seconds off still agree
+  // on the timer, the laps and the final whistle.
+  function nowMs(){ return Date.now() + (state.clockOffset || 0); }
+  function updateClock(serverNow, t0, t1){
+    if(typeof serverNow !== 'number') return;
+    var rtt = t1 - t0;
+    var offset = serverNow - (t0 + rtt / 2);
+    if(!state.clockSet || rtt <= state.clockRtt + 40){ state.clockOffset = offset; state.clockRtt = rtt; state.clockSet = true; }
+  }
+  // Read a shared value, change it, and write it back only if nobody else changed it in between
+  // (otherwise re-read and try again). `mutate` returns the new value, or ABORT to leave it alone.
+  async function updateShared(key, mutate){
+    for(var attempt = 0; attempt < 12; attempt++){
+      var cur = null, ver = 0;
+      try{ var r = await window.storage.get(key, true); cur = r.value; ver = r.version || 0; }catch(e){ cur = null; ver = 0; }
+      var next = mutate((cur === null || cur === undefined) ? null : jparse(cur));
+      if(next === ABORT) return { ok: false, aborted: true };
+      var res;
+      try{ res = await window.storage.cas(key, JSON.stringify(next), ver); }catch(e){ return { ok: false, network: true }; }
+      if(res.ok) return { ok: true, value: next, version: res.version };
+      await delay(15 + Math.random() * 40 * (attempt + 1));
+    }
+    return { ok: false, exhausted: true };
+  }
   function K(name){
     var withCode = (state.gameConfig && state.gameConfig.hasGameCode && state.code) ? (':' + state.code) : '';
     return state.gameId + withCode + ':' + name;
@@ -620,21 +695,90 @@
     catch(e){ console.error('leaderboard push failed', e); }
   }
 
-  async function fetchLeaderboard(){
-    try{
-      var listRes = await window.storage.list(K('leaderboard:'), true);
-      if(!listRes || !listRes.keys){ state.leaderboard = []; return; }
-      var entries = [];
-      for(var i=0;i<listRes.keys.length;i++){
-        try{
-          var r = await window.storage.get(listRes.keys[i], true);
-          if(r && r.value){ var parsed = JSON.parse(r.value); parsed._key = listRes.keys[i]; entries.push(parsed); }
-        }catch(e){}
+  // ---------- the whole game in one request ----------
+  var snapInFlight = null;
+  async function syncSnapshot(force){
+    if(!state.gameId || !state.gameConfig) return false;
+    if(state.gameConfig.hasGameCode && !state.code) return false;
+    var prefix = K('');
+    if(state.snapPrefix !== prefix){ state.snapPrefix = prefix; state.snapVersion = 0; state.snapEpoch = null; }
+    if(snapInFlight){
+      if(!force) return snapInFlight;
+      try{ await snapInFlight; }catch(e){}
+    }
+    var run = (async function(){
+      var t0 = Date.now();
+      try{
+        var data = await window.storage.snapshot(prefix, force ? 0 : state.snapVersion, state.snapEpoch);
+        updateClock(data.serverNow, t0, Date.now());
+        state.snapEpoch = data.epoch;
+        state.pollFailures = 0;
+        if(!data.changed) return false;
+        state.snapVersion = data.version;
+        applySnapshot(data.items || {});
+        return true;
+      }catch(e){
+        state.pollFailures = (state.pollFailures || 0) + 1;
+        return false;
       }
-      entries.sort(function(a,b){ return b.score - a.score; });
-      state.leaderboard = entries;
-    }catch(e){ console.error('fetch leaderboard failed', e); }
+    })();
+    snapInFlight = run;
+    var clear = function(){ if(snapInFlight === run) snapInFlight = null; };
+    run.then(clear, clear);
+    return run;
   }
+
+  function applySnapshot(items){
+    var cfg = state.gameConfig;
+    state.session = items[K('session')] ? jparse(items[K('session')]) : null;
+    state.teamsInfo = items[K('teams')] ? jparse(items[K('teams')]) : null;
+    var lbPrefix = K('leaderboard:');
+    var entries = [];
+    Object.keys(items).forEach(function(key){
+      if(key.indexOf(lbPrefix) === 0){ var en = jparse(items[key]); if(en){ en._key = key; entries.push(en); } }
+    });
+    entries.sort(function(a, b){ return b.score - a.score; });
+    state.leaderboard = entries;
+    if(!(cfg && cfg.hasRoles)) return;
+
+    var teams = {};
+    entries.forEach(function(e){ if(e.team){ var sl = teamSlug(e.team); if(!teams[sl]) teams[sl] = { name: e.team.trim() }; } });
+    var data = {}, lastThrow = {};
+    Object.keys(teams).forEach(function(sl){
+      var lapsRaw = items[K('laps:'+sl)], pcRaw = items[K('pcbonus:'+sl)], racerRaw = items[K('racer:'+sl)];
+      var meterRaw = items[K('meter:'+sl)], chRaw = items[K('challenge:'+sl)], scRaw = items[K('shortcut:'+sl)], ltRaw = items[K('lastthrow:'+sl)];
+      var ch = chRaw ? jparse(chRaw) : null;
+      if(ch && ch.resolved){ ch = null; }
+      data[sl] = {
+        name: teams[sl].name,
+        laps: lapsRaw ? (jparse(lapsRaw) || []) : [],
+        pcbonus: pcRaw ? (parseFloat(pcRaw) || 0) : 0,
+        racer: racerRaw ? jparse(racerRaw) : null,
+        meter: meterRaw ? (parseFloat(meterRaw) || 0) : 0,
+        challenge: ch,
+        shortcut: scRaw ? jparse(scRaw) : null
+      };
+      lastThrow[sl] = ltRaw ? (parseFloat(ltRaw) || 0) : 0;
+    });
+    state.teamData = data;
+    state.lastThrowBySlug = lastThrow;
+
+    if(!state.isQ){
+      var prevAt = state.myChallenge ? state.myChallenge.issuedAt : null;
+      var myRaw = state.team ? items[K('challenge:'+teamSlug(state.team))] : null;
+      var mine = myRaw ? jparse(myRaw) : null;
+      if(mine && mine.resolved){ mine = null; }
+      state.myChallenge = mine;
+      if(mine && mine.issuedAt !== prevAt){
+        notifyPowerupHit(mine.fromTeam ? (mine.fromTeam + ' hit your team!') : 'Your team got hit with a power-up!');
+      }
+    }
+  }
+
+  // These used to make dozens of requests each; now they all just refresh the one snapshot.
+  async function fetchSession(){ await syncSnapshot(true); }
+  async function fetchTeams(){ await syncSnapshot(true); }
+  async function fetchLeaderboard(){ await syncSnapshot(true); }
 
   function teamTotals(){
     var map = {};
@@ -650,14 +794,6 @@
     return arr;
   }
 
-  async function fetchSession(){
-    try{ var r = await window.storage.get(K('session'), true); state.session = (r && r.value) ? JSON.parse(r.value) : null; }
-    catch(e){ state.session = null; }
-  }
-  async function fetchTeams(){
-    try{ var r = await window.storage.get(K('teams'), true); state.teamsInfo = (r && r.value) ? JSON.parse(r.value) : null; }
-    catch(e){ state.teamsInfo = null; }
-  }
 
   async function applyMyTeamAssignment(){
     if(!state.team && state.teamsInfo && state.teamsInfo.assignments){
@@ -750,37 +886,10 @@
   }
 
   // ---------- mario kart: laps / challenge / pit crew bonus ----------
-  async function refreshTeamsData(){
-    var teams = {};
-    state.leaderboard.forEach(function(e){ if(e.team){ var slug=teamSlug(e.team); if(!teams[slug]) teams[slug]={name:e.team.trim()}; } });
-    var slugs = Object.keys(teams);
-    var data = {};
-    for(var i=0;i<slugs.length;i++){
-      var slug = slugs[i];
-      var laps = []; var pcbonus = 0; var racer = null; var meter = 0; var challenge = null;
-      try{ var r1 = await window.storage.get(K('laps:'+slug), true); laps = (r1 && r1.value) ? JSON.parse(r1.value) : []; }catch(e){ laps = []; }
-      try{ var r2 = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (r2 && r2.value) ? parseFloat(r2.value) : 0; }catch(e){ pcbonus = 0; }
-      try{ var r3 = await window.storage.get(K('racer:'+slug), true); racer = (r3 && r3.value) ? JSON.parse(r3.value) : null; }catch(e){ racer = null; }
-      try{ var r4 = await window.storage.get(K('meter:'+slug), true); meter = (r4 && r4.value) ? parseFloat(r4.value) : 0; }catch(e){ meter = 0; }
-      try{ var r5 = await window.storage.get(K('challenge:'+slug), true); challenge = (r5 && r5.value) ? JSON.parse(r5.value) : null; }catch(e){ challenge = null; }
-      var shortcut = null;
-      try{ var r6 = await window.storage.get(K('shortcut:'+slug), true); shortcut = (r6 && r6.value) ? JSON.parse(r6.value) : null; }catch(e){ shortcut = null; }
-      data[slug] = { name: teams[slug].name, laps: laps, pcbonus: pcbonus, racer: racer, meter: meter, challenge: challenge, shortcut: shortcut };
-    }
-    state.teamData = data;
-  }
+  async function refreshTeamsData(){ await syncSnapshot(true); }
+  async function refreshMyChallenge(){ await syncSnapshot(true); }
+  // (kept so older call sites still work)
 
-  async function refreshMyChallenge(){
-    if(!state.team){ state.myChallenge = null; return; }
-    var slug = teamSlug(state.team);
-    var prevAt = state.myChallenge ? state.myChallenge.issuedAt : null;
-    try{ var r = await window.storage.get(K('challenge:'+slug), true); state.myChallenge = (r && r.value) ? JSON.parse(r.value) : null; }
-    catch(e){ state.myChallenge = null; }
-    if(state.myChallenge && state.myChallenge.issuedAt !== prevAt){
-      var fromWho = state.myChallenge.fromTeam ? (state.myChallenge.fromTeam + ' hit your team!') : 'Your team got hit with a power-up!';
-      notifyPowerupHit(fromWho);
-    }
-  }
 
   function lapInfoFor(slug){
     var td = state.teamData[slug];
@@ -790,7 +899,7 @@
     var lapsDone = td.laps.filter(function(t){ return t <= endAt; });
     var completed = lapsDone.length;
     if(completed === 0) return {completed:0, fraction:0, total:0};
-    var now = Math.min(Date.now(), endAt);
+    var now = Math.min(nowMs(), endAt);
     var elapsedNow = (now - state.session.startTime)/1000;
     var avg = elapsedNow/completed;
     var lastLapTime = (lapsDone[completed-1] - state.session.startTime)/1000;
@@ -812,27 +921,35 @@
   function renderTrackView(){
     var slugs = Object.keys(state.teamData);
     if(slugs.length === 0) return '<div class="empty">No teams on the track yet.</div>';
-    var cx = 420, cy = 250, rx = 320, ry = 150;
-    var svg = '<svg viewBox="0 0 840 500" style="width:100%; height:auto; display:block;">';
+    var cx = 420, cy = 300, rx = 320, ry = 150;
+    var svg = '<svg viewBox="0 0 840 590" style="width:100%; height:auto; display:block;">';
     svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="none" stroke="#2b2838" stroke-width="64"/>';
     svg += '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+rx+'" ry="'+ry+'" fill="none" stroke="#55506a" stroke-width="2" stroke-dasharray="10 10"/>';
     svg += '<rect x="'+(cx-4)+'" y="'+(cy-ry-32)+'" width="8" height="64" fill="#fff"/>';
     svg += '<text x="'+cx+'" y="'+(cy-ry+78)+'" text-anchor="middle" font-size="15" fill="#8a8794" style="font-family:monospace; letter-spacing:3px;">&#9650; START / FINISH</text>';
-    var stable = slugs.slice().sort();      // a fixed order, so labels don't jump around as scores change
-    stable.forEach(function(slug, idx){
+    var items = slugs.slice().sort().map(function(slug){
       var td = state.teamData[slug];
       var info = lapInfoFor(slug);
-      var flair = teamFlair(td.name);
       var angle = (info.fraction * Math.PI * 2) - (Math.PI/2);
-      var x = cx + rx * Math.cos(angle);
-      var y = cy + ry * Math.sin(angle);
-      svg += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="24" fill="'+flair.color+'" stroke="#000" stroke-width="3"/>';
-      svg += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="22">'+flair.emoji+'</text>';
-      var stack = idx % 2;
-      var labelY = (y <= cy) ? (y - 38 - stack*26) : (y + 50 + stack*26);
-      var anchor = x < 240 ? 'start' : (x > 600 ? 'end' : 'middle');
-      var labelX = anchor === 'start' ? Math.max(8, x - 24) : (anchor === 'end' ? Math.min(832, x + 24) : x);
-      svg += '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="'+anchor+'" font-size="19" font-weight="700" fill="'+flair.color+'" stroke="#000" stroke-width="4" paint-order="stroke" style="font-family:monospace; text-transform:uppercase;">'+td.name+' &middot; L'+info.completed+'</text>';
+      var x = cx + rx * Math.cos(angle), y = cy + ry * Math.sin(angle);
+      return { td: td, info: info, flair: teamFlair(td.name), x: x, y: y, above: y <= cy, level: 0 };
+    });
+    // Teams that are close together get their labels stacked at different heights, so nothing overlaps.
+    var placed = { above: [], below: [] };
+    items.slice().sort(function(a, b){ return a.x - b.x; }).forEach(function(it){
+      var list = it.above ? placed.above : placed.below, used = {};
+      list.forEach(function(o){ if(Math.abs(o.x - it.x) < 230){ used[o.level] = true; } });
+      var lvl = 0; while(used[lvl]){ lvl++; }
+      it.level = lvl; list.push({ x: it.x, level: lvl });
+    });
+    items.forEach(function(it){
+      svg += '<circle cx="'+it.x.toFixed(1)+'" cy="'+it.y.toFixed(1)+'" r="24" fill="'+it.flair.color+'" stroke="#000" stroke-width="3"/>';
+      svg += '<text x="'+it.x.toFixed(1)+'" y="'+it.y.toFixed(1)+'" text-anchor="middle" dominant-baseline="central" font-size="22">'+it.flair.emoji+'</text>';
+      var labelY = it.above ? (it.y - 38 - it.level*26) : (it.y + 50 + it.level*26);
+      var anchor = it.x < 240 ? 'start' : (it.x > 600 ? 'end' : 'middle');
+      var labelX = anchor === 'start' ? Math.max(8, it.x - 24) : (anchor === 'end' ? Math.min(832, it.x + 24) : it.x);
+      var shortName = it.td.name.replace(/^TEAM\s+/i, '') || it.td.name;
+      svg += '<text x="'+labelX.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="'+anchor+'" font-size="19" font-weight="700" fill="'+it.flair.color+'" stroke="#000" stroke-width="4" paint-order="stroke" style="font-family:monospace; text-transform:uppercase;">'+shortName+' &middot; L'+it.info.completed+'</text>';
     });
     svg += '</svg>';
     return svg;
@@ -911,16 +1028,19 @@
 
   // A Rocket that is "pending" becomes active for whoever is now up; one that is active is used up.
   async function advanceShortcut(slug, newRunnerId, runnerFinishedLap){
-    var sc = null;
-    try{ var r = await window.storage.get(K('shortcut:'+slug), true); sc = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ sc = null; }
-    if(!sc) return;
-    if(sc.state === 'pending'){
-      sc.state = 'active'; sc.activatedAt = Date.now();
-      try{ await window.storage.set(K('shortcut:'+slug), JSON.stringify(sc), true); }catch(e){}
+    var known = state.teamData[slug] && state.teamData[slug].shortcut;
+    if(!known) return;                      // no Rocket in play for this team
+    var activated = false;
+    var res = await updateShared(K('shortcut:'+slug), function(sc){
+      if(!sc || sc.state !== 'pending') return ABORT;
+      sc.state = 'active'; sc.activatedAt = nowMs(); activated = true;
+      return sc;
+    });
+    if(activated && res.ok){
       if(newRunnerId){ sendPush([newRunnerId], '\uD83D\uDE80 You\'re up with the ' + powerupById('rocket').label + '!', 'Take the half-lap shortcut on your lap.', 'shortcut'); }
-    } else if(runnerFinishedLap){
-      try{ await window.storage.delete(K('shortcut:'+slug), true); }catch(e){}
+      return;
     }
+    if(runnerFinishedLap){ try{ await window.storage.delete(K('shortcut:'+slug), true); }catch(e){} }
   }
 
   function isSittingOut(pid){
@@ -939,42 +1059,59 @@
     return (rs.currentIndex + 1) % n;
   }
 
+  var lapBusy = false;
   async function completeLap(){
-    if(!state.team) return;
+    if(!state.team || lapBusy) return;
     var tlL = timeLeftSec(); if(tlL !== null && tlL <= 0) return;
-    var slug = teamSlug(state.team);
-    var arr = [];
-    try{ var r = await window.storage.get(K('laps:'+slug), true); arr = (r && r.value) ? JSON.parse(r.value) : []; }catch(e){ arr = []; }
-    arr.push(Date.now());
-    try{ await window.storage.set(K('laps:'+slug), JSON.stringify(arr), true); }catch(e){ console.error(e); }
-    var rs = null;
-    try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
-    if(rs && rs.order && rs.order.length){
-      rs.currentIndex = nextRunnerIndex(rs);
-      try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
-    }
-    await advanceShortcut(slug, (rs && rs.order && rs.order.length) ? rs.order[rs.currentIndex % rs.order.length] : null, true);
-    await refreshTeamsData();
-    render();
+    lapBusy = true;
+    try{
+      var slug = teamSlug(state.team), me = state.devicePlayerId;
+      var newRunnerId = null, stamp = nowMs();
+      // 1) Hand over the baton - but only if I really am the runner right now, so a double tap can't count twice.
+      var moved = await updateShared(K('racer:'+slug), function(rs){
+        if(!rs || !rs.order || !rs.order.length) return ABORT;
+        if(rs.order[rs.currentIndex % rs.order.length] !== me) return ABORT;
+        rs.currentIndex = nextRunnerIndex(rs);
+        newRunnerId = rs.order[rs.currentIndex % rs.order.length];
+        return rs;
+      });
+      if(!moved.ok){ await refreshTeamsData(); render(); return; }
+      // 2) Log the lap. If the connection blips, keep trying; the timestamp makes sure it is never counted twice.
+      for(var tries = 0; tries < 6; tries++){
+        var lr = await updateShared(K('laps:'+slug), function(arr){ arr = Array.isArray(arr) ? arr : []; if(arr.indexOf(stamp) !== -1) return ABORT; arr.push(stamp); return arr; });
+        if(lr.ok || lr.aborted) break;
+        await delay(800 * (tries + 1));
+      }
+      await advanceShortcut(slug, newRunnerId, true);
+      await refreshTeamsData();
+      render();
+    } finally { lapBusy = false; }
   }
 
   // Hand the baton to the next runner WITHOUT logging a lap.
   async function skipTurn(){
-    if(!state.team) return;
+    if(!state.team || lapBusy) return;
     var tlS = timeLeftSec(); if(tlS !== null && tlS <= 0) return;
-    var slug = teamSlug(state.team);
-    var rs = null;
-    try{ var rr = await window.storage.get(K('racer:'+slug), true); rs = (rr && rr.value) ? JSON.parse(rr.value) : null; }catch(e){ rs = null; }
-    if(!rs || !rs.order || !rs.order.length) return;
-    if(rs.order[rs.currentIndex % rs.order.length] !== state.devicePlayerId){ await refreshTeamsData(); render(); return; }
-    var next = nextRunnerIndex(rs);
-    if(next === rs.currentIndex){ alert('Nobody else on your team is available to run right now.'); return; }
-    rs.currentIndex = next;
-    try{ await window.storage.set(K('racer:'+slug), JSON.stringify(rs), true); }catch(e){ console.error(e); }
-    state.toast = { msg:'Turn skipped \u2014 baton passed on.', until: Date.now()+4000 };
-    await advanceShortcut(slug, rs.order[rs.currentIndex % rs.order.length], false);
-    await refreshTeamsData();
-    render();
+    lapBusy = true;
+    try{
+      var slug = teamSlug(state.team), me = state.devicePlayerId;
+      var newRunnerId = null, nobody = false;
+      var res = await updateShared(K('racer:'+slug), function(rs){
+        if(!rs || !rs.order || !rs.order.length) return ABORT;
+        if(rs.order[rs.currentIndex % rs.order.length] !== me) return ABORT;
+        var next = nextRunnerIndex(rs);
+        if(next === rs.currentIndex){ nobody = true; return ABORT; }
+        rs.currentIndex = next;
+        newRunnerId = rs.order[next % rs.order.length];
+        return rs;
+      });
+      if(nobody){ alert('Nobody else on your team is available to run right now.'); return; }
+      if(!res.ok){ await refreshTeamsData(); render(); return; }
+      state.toast = { msg:'Turn skipped \u2014 baton passed on.', until: Date.now()+4000 };
+      await advanceShortcut(slug, newRunnerId, false);
+      await refreshTeamsData();
+      render();
+    } finally { lapBusy = false; }
   }
 
   async function toggleSitOut(){
@@ -1024,8 +1161,8 @@
   }
 
   var MIN_THROW_INTERVAL_MS = 90000;
-  async function getLastThrowTime(slug){
-    try{ var r = await window.storage.get(K('lastthrow:'+slug), true); return (r && r.value) ? parseFloat(r.value) : 0; }catch(e){ return 0; }
+  function getLastThrowTime(slug){
+    return (state.lastThrowBySlug && state.lastThrowBySlug[slug]) || 0;
   }
 
   async function completeAssignedExercise(){
@@ -1035,40 +1172,38 @@
     var repCount = a.reps || 1;
     var earned = a.pts * repCount * (1 + (a.boostPct||0)/100);
     state.tapEarnings += earned;
+    state.assignedExercise = null;            // clear right away so a double tap can't count twice
+    render();
     if(state.team){
       var slug = teamSlug(state.team);
-      var meter = 0;
-      try{ var r = await window.storage.get(K('meter:'+slug), true); meter = (r && r.value) ? parseFloat(r.value) : 0; }catch(e){ meter = 0; }
       var contribution = a.meterPct;
       if(a.difficultyId !== 'extreme'){
         var size = teamMemberCount(state.team);
         contribution = a.meterPct * (METER_REFERENCE_TEAM_SIZE / size);
       }
-      meter = Math.min(100, meter + contribution);
-      try{ await window.storage.set(K('meter:'+slug), String(meter), true); }catch(e){ console.error(e); }
+      // Several teammates can finish at the same moment; this adds to the meter without losing anyone's share.
+      var mres = await updateShared(K('meter:'+slug), function(m){ m = (typeof m === 'number') ? m : 0; return Math.min(100, m + contribution); });
+      var meter = mres.ok ? mres.value : 0;
       if(meter >= 100){
         await refreshTeamsData();
-        var lastThrow = await getLastThrowTime(slug);
-        if(Date.now() - lastThrow >= MIN_THROW_INTERVAL_MS){
+        if(nowMs() - getLastThrowTime(slug) >= MIN_THROW_INTERVAL_MS){
           await autoThrowPowerup();
         }
         // if still on cooldown, the charge stays banked at 100% and the poll loop will fire it once ready
       }
     }
-    state.assignedExercise = null;
     await pushLeaderboardEntry();
     await refreshTeamsData();
     render();
   }
 
   async function tryFireBankedPowerup(){
-    if(!state.team) return;
+    if(!state.team) return false;
     var slug = teamSlug(state.team);
     var td = state.teamData[slug];
-    if(!td || (td.meter||0) < 100) return;
-    var lastThrow = await getLastThrowTime(slug);
-    if(Date.now() - lastThrow < MIN_THROW_INTERVAL_MS) return;
-    await autoThrowPowerup();
+    if(!td || (td.meter||0) < 100) return false;
+    if(nowMs() - getLastThrowTime(slug) < MIN_THROW_INTERVAL_MS) return false;
+    return await autoThrowPowerup();
   }
 
   function teamMemberIds(slug){
@@ -1100,8 +1235,7 @@
     if(!state.team) return false;
     var tlT = timeLeftSec(); if(tlT !== null && tlT <= 0) return false;
     var mySlug = teamSlug(state.team);
-    var lastThrow = await getLastThrowTime(mySlug);
-    if(Date.now() - lastThrow < MIN_THROW_INTERVAL_MS) return false;
+    if(nowMs() - getLastThrowTime(mySlug) < MIN_THROW_INTERVAL_MS) return false;
 
     var standings = lapStandings();
     var myIdx = -1;
@@ -1127,18 +1261,27 @@
     var pick = options[Math.floor(Math.random()*options.length)];
     var powerup = powerupById(pick.type);
 
-    // Claim the cooldown slot immediately (re-checking first) so a teammate's phone can't fire at the same moment.
-    var claimCheck = await getLastThrowTime(mySlug);
-    if(Date.now() - claimCheck < MIN_THROW_INTERVAL_MS) return false;
-    var now = Date.now();
-    try{ await window.storage.set(K('lastthrow:'+mySlug), String(now), true); }catch(e){ return false; }
+    // Claim the cooldown slot atomically, so two teammates' phones can never both fire.
+    var now = nowMs(), prevThrow = 0;
+    var claim = await updateShared(K('lastthrow:'+mySlug), function(last){
+      last = (typeof last === 'number') ? last : 0; prevThrow = last;
+      if(now - last < MIN_THROW_INTERVAL_MS) return ABORT;
+      return now;
+    });
+    if(!claim.ok) return false;
+    state.lastThrowBySlug = state.lastThrowBySlug || {}; state.lastThrowBySlug[mySlug] = now;
+    async function giveBackClaim(){
+      try{ await window.storage.set(K('lastthrow:'+mySlug), JSON.stringify(prevThrow), true); }catch(e){}
+      state.lastThrowBySlug[mySlug] = prevThrow;
+    }
     var pushIds = [], pushTitle = '', pushBody = '', toastMsg = '';
 
     if(pick.type === 'rocket'){
       // The current runner may already be past the turn-off, so the shortcut is saved for the NEXT runner.
       var rl = powerup.label;
       var nextName = nextRunnerNameFor(myTd);
-      try{ await window.storage.set(K('shortcut:'+mySlug), JSON.stringify({ issuedAt: now, fromTeam: state.team, state: 'pending' }), true); }catch(e){ console.error(e); return false; }
+      var scw = await updateShared(K('shortcut:'+mySlug), function(old){ if(old) return ABORT; return { issuedAt: now, fromTeam: state.team, state: 'pending' }; });
+      if(!scw.ok){ await giveBackClaim(); return false; }
       state.lastShortcutSeen = now + ':pending';
       pushIds = teamMemberIds(mySlug);
       pushTitle = '\uD83D\uDE80 ' + rl + ' loaded!';
@@ -1147,9 +1290,6 @@
     } else {
       var targetSlug = pick.target;
       var targetName = state.teamData[targetSlug].name;
-      var existing = null;
-      try{ var r2 = await window.storage.get(K('challenge:'+targetSlug), true); existing = (r2 && r2.value) ? JSON.parse(r2.value) : null; }catch(e){ existing = null; }
-      if(existing) return false;
       var ch;
       if(pick.type === 'blueshell'){
         var rs = state.teamData[targetSlug].racer;
@@ -1170,40 +1310,47 @@
         pushTitle = powerup.label + ' incoming!';
         pushBody = state.team + ' hit your team \u2014 everyone does ' + reps + ' \u00D7 ' + bx.name + '.';
       }
-      try{ await window.storage.set(K('challenge:'+targetSlug), JSON.stringify(ch), true); }catch(e){ console.error(e); return false; }
+      var chw = await updateShared(K('challenge:'+targetSlug), function(old){ if(old && !old.resolved) return ABORT; return ch; });
+      if(!chw.ok){ await giveBackClaim(); return false; }
       pushIds = teamMemberIds(targetSlug);
       toastMsg = powerup.label + ' sent at ' + targetName + '!';
     }
 
     try{ await window.storage.set(K('meter:'+mySlug), '0', true); }catch(e){}
     sendPush(pushIds, pushTitle, pushBody, 'powerup');
-    state.toast = { msg: toastMsg, until: now + 5000 };
+    state.toast = { msg: toastMsg, until: Date.now() + 5000 };
     return true;
   }
 
 
   async function confirmChallengeDone(){
     if(!state.team) return;
-    var slug = teamSlug(state.team);
-    var ch = null;
-    try{ var r = await window.storage.get(K('challenge:'+slug), true); ch = (r && r.value) ? JSON.parse(r.value) : null; }catch(e){ ch = null; }
-    if(!ch){ state.myChallenge = null; render(); return; }
-    if(ch.doneBy.indexOf(state.devicePlayerId) === -1){ ch.doneBy.push(state.devicePlayerId); }
-    if(ch.doneBy.length >= ch.roster.length){
+    var slug = teamSlug(state.team), me = state.devicePlayerId;
+    var outcome = { resolvedByMe: false, ch: null };
+    // Everyone on the team taps at about the same time. Each confirmation is added without erasing anyone else's,
+    // and exactly one phone (the one that completes the set) is the one to award the points.
+    var res = await updateShared(K('challenge:'+slug), function(ch){
+      if(!ch || ch.resolved) return ABORT;
+      if(ch.doneBy.indexOf(me) === -1){ ch.doneBy.push(me); }
+      outcome.resolvedByMe = ch.doneBy.length >= ch.roster.length;
+      if(outcome.resolvedByMe){ ch.resolved = true; }
+      outcome.ch = ch;
+      return ch;
+    });
+    if(!res.ok){
+      if(res.aborted){ state.myChallenge = null; }
+      await refreshTeamsData(); render(); return;
+    }
+    var ch = outcome.ch;
+    if(outcome.resolvedByMe){
       var bonus = (ch.reps||0) * (ch.pts||0) * (1 + (ch.boostPct||0)/100);
-      if(bonus > 0){
-        var pcbonus = 0;
-        try{ var rb = await window.storage.get(K('pcbonus:'+slug), true); pcbonus = (rb && rb.value) ? parseFloat(rb.value) : 0; }catch(e){ pcbonus = 0; }
-        pcbonus += bonus;
-        try{ await window.storage.set(K('pcbonus:'+slug), String(pcbonus), true); }catch(e){}
-      }
+      if(bonus > 0){ await updateShared(K('pcbonus:'+slug), function(old){ return (typeof old === 'number' ? old : 0) + bonus; }); }
       try{ await window.storage.delete(K('challenge:'+slug), true); }catch(e){}
       state.myChallenge = null;
       state.toast = (ch.kind === 'detour')
-        ? { msg:'Detour complete — back to racing!', until: Date.now()+5000 }
+        ? { msg:'Detour complete \u2014 back to racing!', until: Date.now()+5000 }
         : { msg:'Team Challenge Complete! +'+fmtPts(bonus)+' pts to Pit Crew board', until: Date.now()+5000 };
     } else {
-      try{ await window.storage.set(K('challenge:'+slug), JSON.stringify(ch), true); }catch(e){}
       state.myChallenge = ch;
     }
     await refreshTeamsData();
@@ -1211,20 +1358,14 @@
   }
 
   async function clearScopedRoundData(){
-    try{ var lapKeys = await window.storage.list(K('laps:'), true); if(lapKeys && lapKeys.keys){ for(var i=0;i<lapKeys.keys.length;i++){ try{ await window.storage.delete(lapKeys.keys[i], true); }catch(e){} } } }catch(e){}
-    try{ var chKeys = await window.storage.list(K('challenge:'), true); if(chKeys && chKeys.keys){ for(var j=0;j<chKeys.keys.length;j++){ try{ await window.storage.delete(chKeys.keys[j], true); }catch(e){} } } }catch(e){}
-    try{ var pcKeys = await window.storage.list(K('pcbonus:'), true); if(pcKeys && pcKeys.keys){ for(var k=0;k<pcKeys.keys.length;k++){ try{ await window.storage.delete(pcKeys.keys[k], true); }catch(e){} } } }catch(e){}
-    try{ var meterKeys = await window.storage.list(K('meter:'), true); if(meterKeys && meterKeys.keys){ for(var m=0;m<meterKeys.keys.length;m++){ try{ await window.storage.delete(meterKeys.keys[m], true); }catch(e){} } } }catch(e){}
-    try{ var scKeys = await window.storage.list(K('shortcut:'), true); if(scKeys && scKeys.keys){ for(var q=0;q<scKeys.keys.length;q++){ try{ await window.storage.delete(scKeys.keys[q], true); }catch(e){} } } }catch(e){}
-    try{ await window.storage.delete(K('endpush'), true); }catch(e){}
-    try{ var throwKeys = await window.storage.list(K('lastthrow:'), true); if(throwKeys && throwKeys.keys){ for(var t=0;t<throwKeys.keys.length;t++){ try{ await window.storage.delete(throwKeys.keys[t], true); }catch(e){} } } }catch(e){}
-    try{ var lbKeys = await window.storage.list(K('leaderboard:'), true); if(lbKeys && lbKeys.keys){ for(var l=0;l<lbKeys.keys.length;l++){ try{ await window.storage.delete(lbKeys.keys[l], true); }catch(e){} } } }catch(e){}
-    try{ await window.storage.delete(K('teams'), true); }catch(e){}
+    var prefixes = ['laps:', 'challenge:', 'pcbonus:', 'meter:', 'shortcut:', 'lastthrow:', 'leaderboard:', 'racer:'].map(function(p){ return K(p); });
+    prefixes.push(K('endpush')); prefixes.push(K('teams'));
+    try{ await window.storage.deletePrefixes(prefixes); }catch(e){ console.error('reset failed', e); }
   }
 
   function timeLeftSec(){
     if(!state.session || !state.session.startTime) return null;
-    return state.session.durationSec - (Date.now()-state.session.startTime)/1000;
+    return state.session.durationSec - (nowMs()-state.session.startTime)/1000;
   }
 
   function tap(exId, delta){
@@ -1651,6 +1792,7 @@
     });
     var order = lapStandings().map(function(t){ return teamSlug(t.name); }).filter(function(sl){ return !!state.teamData[sl]; });
     var html = '<div class="setup-label" style="margin-bottom:10px;">Team Progress</div>';
+    html += '<div class="prog-grid' + (order.length > 3 ? ' two' : '') + '">';
     order.forEach(function(sl){
       var td = state.teamData[sl];
       var fl = teamFlair(td.name);
@@ -1661,6 +1803,7 @@
         barRow('Power', meter, '#ff5252', Math.round(meter) + '%') +
         barRow('Points', pts / maxPts * 100, '#ffc93c', fmtPts(pts)) + '</div>';
     });
+    html += '</div>';
     return html;
   }
 
@@ -1754,7 +1897,7 @@
     if(state.screen !== 'game' || !state.gameConfig || !state.gameConfig.hasRoles) return;
     if(!(state.isQ || state.playerName) || !state.session || !state.session.startTime) return;
     var endAt = state.session.startTime + state.session.durationSec * 1000;
-    var now = Date.now();
+    var now = nowMs();
     if(now < endAt || state.endHandledFor === endAt) return;
     state.endHandledFor = endAt;
     var since = now - endAt;
@@ -1840,7 +1983,7 @@
       startBtn.onclick = async function(){
         unlockAudio();
         var sess = JSON.parse(JSON.stringify(state.session));
-        sess.startTime = Date.now();
+        sess.startTime = nowMs();
         try{ await window.storage.set(K('session'), JSON.stringify(sess), true); state.session = sess; await refreshTeamsData(); render(); }
         catch(e){ console.error(e); }
       };
@@ -2018,7 +2161,7 @@
           var ids = combinedExercises().filter(function(e){ return state.classicSelection[e.id] && state.classicSelection[e.id].included; }).map(function(e){ return e.id; });
           if(ids.length === 0){ alert('Pick at least one exercise or travel.'); return; }
           (async function(){
-            var sess = { durationSec: mins*60, startTime: Date.now(), exerciseIds: ids };
+            var sess = { durationSec: mins*60, startTime: nowMs(), exerciseIds: ids };
             try{ await window.storage.set(K('session'), JSON.stringify(sess), true); state.session = sess; render(); }catch(e){ console.error(e); }
           })();
         };
@@ -2080,8 +2223,7 @@
       if(!confirm('Reset the round for everyone?')) return;
       try{
         await window.storage.set(K('session'), JSON.stringify({durationSec:null,startTime:null,exerciseIds:null}), true);
-        try{ await window.storage.delete(K('teams'), true); }catch(e){}
-        for(var i=0;i<state.leaderboard.length;i++){ try{ await window.storage.delete(state.leaderboard[i]._key, true); }catch(e){} }
+        await clearScopedRoundData();
       }catch(e){}
       state.reps={}; state.missionAwarded=false;
       await fetchSession(); await fetchTeams(); await fetchLeaderboard();
@@ -2344,6 +2486,71 @@
     return true;
   }
 
+  // ---------- keeping every screen up to date ----------
+  var POLL_MS_PAX = 2000;
+  var POLL_MS_Q = 1500;
+
+  async function pollOnce(){
+    if(!(state.screen === 'game' && state.gameId && state.gameConfig)) return;
+    if(state.gameConfig.hasGameCode && !state.code) return;
+    if(!state.isQ && !state.playerName) return;
+    var changed = await syncSnapshot(false);        // ONE small request; a tiny reply if nothing changed
+    if(!state.isQ){
+      var teamBefore = state.team;
+      await applyMyTeamAssignment();
+      if(state.team !== teamBefore){ changed = true; }
+    }
+    if(state.gameConfig.hasRoles && !state.isQ){
+      if(await tryFireBankedPowerup()){ changed = true; }
+      var myTd = state.team ? state.teamData[teamSlug(state.team)] : null;
+      if(myTd && myTd.shortcut){
+        var scState = myTd.shortcut.state || 'active';
+        var scKey = myTd.shortcut.issuedAt + ':' + scState;
+        if(scKey !== state.lastShortcutSeen){
+          state.lastShortcutSeen = scKey;
+          var rockName = powerupById('rocket').label;
+          if(scState === 'pending'){ notifyPowerupHit(rockName + ' loaded! ' + nextRunnerNameFor(myTd) + ' takes the half-lap shortcut next lap.'); }
+          else if(isActiveRacer()){ notifyPowerupHit(rockName + '! Take the half-lap shortcut this lap.'); }
+        }
+      }
+    }
+    if(changed){ render(); }
+  }
+
+  // One update at a time (never piling up), slowing down if the server is struggling, and a little random
+  // spread so a whole room of phones doesn't all ask in the same instant.
+  async function pollLoop(){
+    try{ await pollOnce(); }catch(e){ console.error('update failed', e); state.pollFailures = (state.pollFailures || 0) + 1; }
+    var base = state.isQ ? POLL_MS_Q : POLL_MS_PAX;
+    var wait = Math.min(8000, base * Math.pow(1.6, Math.min(state.pollFailures || 0, 5)));
+    setTimeout(pollLoop, wait + Math.random() * 300);
+  }
+
+  function updatePhoneClock(left){
+    var box = document.querySelector('.stat-box');
+    if(!box) return;
+    var val = box.querySelector('.stat-value');
+    if(val){ val.textContent = fmtTime(left); }
+    if(box.classList){ box.classList.toggle('urgent', left <= 60 && left > 0); }
+  }
+
+  // Once a second: watch for the final whistle. The Q's big screen redraws every second (the track moves);
+  // phones only update the clock, and redraw when new data arrives, so taps are never lost to a redraw.
+  function tick(){
+    if(!(state.screen === 'game' && (state.isQ || state.playerName) && state.session && state.session.startTime)) return;
+    checkGameEnd();
+    var roles = state.gameConfig && state.gameConfig.hasRoles;
+    if(!roles || state.isQ){ render(); return; }
+    var left = timeLeftSec();
+    var endAt = state.session.startTime + state.session.durationSec * 1000;
+    if(left <= 0){
+      if(state.renderedEndFor !== endAt){ state.renderedEndFor = endAt; render(); }
+      return;
+    }
+    updatePhoneClock(left);
+    if(state.toast && Date.now() > state.toast.until){ state.toast = null; render(); }
+  }
+
   async function init(){
     if(!window.storage || typeof window.storage.get !== 'function'){
       app.innerHTML = '<div class="card"><p class="eyebrow" style="color:var(--danger);">Storage Unavailable</p>' +
@@ -2377,39 +2584,8 @@
 
     render();
 
-    setInterval(async function(){
-      if(state.screen === 'game' && state.gameId && state.gameConfig){
-        if(state.gameConfig.hasGameCode && !state.code){ return; }
-        if(!state.isQ && !state.playerName){ return; }
-        await fetchSession(); await fetchTeams();
-        if(state.isQ || state.playerName){
-          await fetchLeaderboard();
-          if(!state.isQ){ await applyMyTeamAssignment(); }
-          if(state.gameConfig.hasRoles){
-            await refreshTeamsData();
-            if(!state.isQ){
-              await refreshMyChallenge(); await tryFireBankedPowerup(); await refreshTeamsData();
-              var myTd = state.team ? state.teamData[teamSlug(state.team)] : null;
-              if(myTd && myTd.shortcut){
-                var scState = myTd.shortcut.state || 'active';
-                var scKey = myTd.shortcut.issuedAt + ':' + scState;
-                if(scKey !== state.lastShortcutSeen){
-                  state.lastShortcutSeen = scKey;
-                  var rockName = powerupById('rocket').label;
-                  if(scState === 'pending'){ notifyPowerupHit(rockName + ' loaded! ' + nextRunnerNameFor(myTd) + ' takes the half-lap shortcut next lap.'); }
-                  else if(isActiveRacer()){ notifyPowerupHit(rockName + '! Take the half-lap shortcut this lap.'); }
-                }
-              }
-            }
-          }
-        }
-        render();
-      }
-    }, 4000);
-
-    setInterval(function(){
-      if(state.screen === 'game' && (state.isQ || state.playerName) && state.session && state.session.startTime){ checkGameEnd(); render(); }
-    }, 1000);
+    pollLoop();
+    setInterval(tick, 1000);
   }
 
   init();
